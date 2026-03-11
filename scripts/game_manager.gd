@@ -25,6 +25,7 @@ var _is_roguelite := false
 var _board_score := 0
 var _active_gravity_wells: Array[Dictionary] = []
 var _bot: Node = null
+var _hit_streak_positions: Array[Vector2] = []
 
 @onready var cannon := $Cannon
 @onready var pegs_container := $Pegs
@@ -159,6 +160,7 @@ func _on_ball_fired(pos: Vector2, direction: Vector2, power: float) -> void:
 func _on_ball_lost() -> void:
 	state = State.BALL_LOST
 	_combo_count = 0
+	_hit_streak_positions.clear()
 	if current_ball:
 		current_ball.queue_free()
 		current_ball = null
@@ -175,8 +177,26 @@ func _on_ball_lost() -> void:
 		state = State.PLAYING
 		cannon.can_shoot = true
 
+func _celebrate_clear() -> void:
+	# Flash remaining pegs
+	for peg in pegs_container.get_children():
+		if peg.has_method("flash_celebrate"):
+			peg.flash_celebrate()
+	# Radial spark burst from center
+	var center := Vector2(640, 360)
+	for i in range(32):
+		var spark := _CelebrationSpark.new()
+		spark._angle = TAU * float(i) / 32.0 + randf() * 0.1
+		spark._speed = randf_range(200, 500)
+		spark._color = Color(1.0, 0.85, 0.3)  # Gold
+		spark.global_position = center
+		add_child(spark)
+	_flash_alpha = 0.25
+	_shake_amount = 6.0
+
 func _on_board_cleared() -> void:
 	state = State.LEVEL_COMPLETE
+	_celebrate_clear()
 	await get_tree().create_timer(1.0).timeout
 
 	if _is_roguelite:
@@ -249,6 +269,18 @@ func _on_peg_hit(peg: Node) -> void:
 
 	if _is_roguelite:
 		RunState.on_peg_hit_coin(peg_type)
+
+	# Hit streak lightning
+	_hit_streak_positions.append(peg.global_position)
+	if _hit_streak_positions.size() > 5:
+		_hit_streak_positions.remove_at(0)
+	if _hit_streak_positions.size() >= 3:
+		var bolt := _ChainBoltEffect.new()
+		bolt._start = _hit_streak_positions[-2]
+		bolt._end = _hit_streak_positions[-1]
+		bolt._color = Color(0.8, 0.6, 1.0)  # Purple lightning
+		bolt._lifetime = 0.4
+		add_child(bolt)
 
 	# Handle special peg effects
 	match special:
@@ -390,3 +422,32 @@ class _ChainBoltEffect extends Node2D:
 			local_path.append(p - global_position)
 		draw_polyline(local_path, Color(_color.r, _color.g, _color.b, t * 0.9), 2.0)
 		draw_polyline(local_path, Color(_color.r, _color.g, _color.b, t * 0.2), 5.0)
+
+
+class _CelebrationSpark extends Node2D:
+	var _color := Color.GOLD
+	var _angle := 0.0
+	var _speed := 300.0
+	var _lifetime := 1.0
+	var _age := 0.0
+	var _vel := Vector2.ZERO
+
+	func _ready() -> void:
+		_vel = Vector2.from_angle(_angle) * _speed
+
+	func _process(delta: float) -> void:
+		_age += delta
+		if _age >= _lifetime:
+			queue_free()
+			return
+		position += _vel * delta
+		_vel *= 0.97
+		queue_redraw()
+
+	func _draw() -> void:
+		var t := 1.0 - _age / _lifetime
+		draw_circle(Vector2.ZERO, 4.0 * t, Color(_color.r, _color.g, _color.b, t * 0.4))
+		var dir := _vel.normalized()
+		var len := _vel.length() * 0.03 * t
+		draw_line(-dir * len, dir * len, Color(_color.r, _color.g, _color.b, t), 2.0)
+		draw_circle(Vector2.ZERO, 1.5 * t, Color(1, 1, 1, t * 0.9))

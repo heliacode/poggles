@@ -4,11 +4,14 @@ var _text := ""
 var _color := Color.WHITE
 var _alpha := 1.0
 var _scale_val := 0.5
+var _drift_x := 0.0
+var _time := 0.0
 
 func setup(text: String, col: Color, pos: Vector2) -> void:
 	_text = text
 	_color = col
 	global_position = pos
+	_drift_x = randf_range(-20.0, 20.0)
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(self, "_scale_val", 1.0, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
@@ -17,7 +20,11 @@ func setup(text: String, col: Color, pos: Vector2) -> void:
 	tween.tween_property(self, "_alpha", 0.0, 0.25)
 	tween.tween_callback(queue_free)
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_time += delta
+	# Horizontal drift and sine wobble
+	position.x += _drift_x * delta
+	position.x += sin(_time * 4.0) * 8.0 * _alpha * delta
 	queue_redraw()
 
 func _draw() -> void:

@@ -9,6 +9,8 @@ signal ball_fired(pos: Vector2, direction: Vector2, power: float)
 var can_shoot := true
 var _recoil := 0.0
 var _pulse := 0.0
+var _aim_particles: Array[Dictionary] = []  # {t: float, speed: float}
+var _aim_spawn_timer := 0.0
 
 func _ready() -> void:
 	aim_line.visible = false
@@ -20,6 +22,22 @@ func _process(delta: float) -> void:
 	_pulse += delta * 3.0
 	if _recoil > 0:
 		_recoil = maxf(0, _recoil - delta * 8.0)
+
+	# Update aim particles (energy dots flowing along aim line)
+	if can_shoot:
+		_aim_spawn_timer += delta
+		if _aim_spawn_timer >= 0.12 and _aim_particles.size() < 8:
+			_aim_spawn_timer = 0.0
+			_aim_particles.append({"t": 1.0, "speed": randf_range(0.5, 1.5)})
+		var i := _aim_particles.size() - 1
+		while i >= 0:
+			_aim_particles[i]["t"] -= delta * _aim_particles[i]["speed"]
+			if _aim_particles[i]["t"] <= 0:
+				_aim_particles.remove_at(i)
+			i -= 1
+	else:
+		_aim_particles.clear()
+
 	queue_redraw()
 
 func _draw() -> void:
@@ -57,6 +75,7 @@ func _draw() -> void:
 	var start: Vector2 = spawn_point.global_position - global_position + recoil_offset
 	var spacing := 14.0
 	var dot_len := 4.0
+	var aim_length := 18.0 * spacing
 	for i in range(18):
 		var t := float(i) / 18.0
 		var alpha := (1.0 - t) * 0.4
@@ -64,6 +83,14 @@ func _draw() -> void:
 		var a := start + dir * offset
 		var b := start + dir * (offset + dot_len)
 		draw_line(a, b, Color(c.r, c.g, c.b, alpha), 1.0)
+
+	# Aim charge particles flowing toward barrel
+	for particle in _aim_particles:
+		var pt: float = particle["t"]
+		var pos := start + dir * (pt * aim_length)
+		var pa := (1.0 - pt) * 0.6  # Brighter near barrel
+		draw_circle(pos, 2.0, Color(c.r, c.g, c.b, pa * 0.4))
+		draw_circle(pos, 1.0, Color(1, 1, 1, pa * 0.8))
 
 func _aim_at_mouse() -> void:
 	var mouse_pos := get_global_mouse_position()
