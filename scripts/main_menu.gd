@@ -7,6 +7,7 @@ var _intro_time := 0.0
 @onready var background := $Background
 
 func _ready() -> void:
+	AudioManager.play_music("menu")
 	# Stagger button fade-in
 	var vbox := get_node_or_null("UI/VBox")
 	if vbox:
@@ -79,6 +80,9 @@ func _draw() -> void:
 func _on_new_run_pressed() -> void:
 	RunState.start_new_run()
 	SceneManager.go_to_act_intro(RunState.current_act)
+
+func _on_unlocks_pressed() -> void:
+	SceneManager.go_to_unlock_screen()
 
 func _on_practice_pressed() -> void:
 	SceneManager.go_to_level_select()

@@ -196,6 +196,7 @@ func hit() -> void:
 		_armor_hits -= 1
 		_hit_flash = 0.6
 		_spawn_armor_shards()
+		AudioManager.play_sfx("armor_crack")
 		return
 
 	_hit = true

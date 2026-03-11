@@ -8,7 +8,7 @@ const VIEWPORT_SIZE := Vector2(VIEWPORT_WIDTH, VIEWPORT_HEIGHT)
 # Ball
 const BALL_RADIUS := 7.0
 const BALL_MAX_SPEED := 1500.0
-const BALL_CLEANUP_Y := 800.0
+const BALL_CLEANUP_Y := 850.0
 const BALL_TRAIL_LENGTH := 20
 const BALL_BOUNCE := 0.5
 const BALL_FRICTION := 0.1
@@ -80,6 +80,9 @@ const ROUTE_MAP_SCENE_PATH := "res://scenes/route_map.tscn"
 const RUN_RESULTS_SCENE_PATH := "res://scenes/run_results.tscn"
 const ACT_INTRO_SCENE_PATH := "res://scenes/act_intro.tscn"
 const EVENT_SCENE_PATH := "res://scenes/event_screen.tscn"
+const RELIC_REWARD_SCENE_PATH := "res://scenes/relic_reward.tscn"
+const SHOP_SCENE_PATH := "res://scenes/shop.tscn"
+const UNLOCK_SCENE_PATH := "res://scenes/unlock_screen.tscn"
 
 # Star thresholds (percentage of max possible score)
 const STAR_THRESHOLDS := [0.25, 0.50, 0.80]

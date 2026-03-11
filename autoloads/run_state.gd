@@ -52,7 +52,8 @@ func start_new_run() -> void:
 	current_act = 1
 	current_board_index = 0
 	total_boards_cleared = 0
-	balls_remaining = GameConfig.STARTING_BALLS
+	var ascension := SaveData.get_ascension_level()
+	balls_remaining = maxi(5, GameConfig.STARTING_BALLS - ascension)
 	coins = 0
 	score = 0
 	pegs_hit_this_run = 0
@@ -62,6 +63,7 @@ func start_new_run() -> void:
 	next_board_mods = {}
 	permanent_coin_bonus = 0
 	permanent_orange_score_bonus = 0
+	RelicManager.reset()
 	_generate_route_map()
 	run_started.emit()
 
@@ -172,6 +174,12 @@ func get_difficulty_params() -> Dictionary:
 			base_orange = 16 + current_board_index
 			base_total = 36 + current_board_index * 2
 			min_spacing *= 0.85
+
+	# Ascension modifiers
+	var ascension := SaveData.get_ascension_level()
+	if ascension > 0:
+		base_orange += ascension  # More orange pegs per ascension level
+		min_spacing *= maxf(0.7, 1.0 - float(ascension) * 0.03)  # Tighter spacing
 
 	return {
 		"orange_count": base_orange,

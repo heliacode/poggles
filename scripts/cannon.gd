@@ -19,6 +19,16 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_aim_at_mouse()
+	# Controller aim
+	var aim_x := Input.get_axis("aim_left", "aim_right")
+	if absf(aim_x) > 0.1:
+		var current_angle := barrel.rotation
+		current_angle += aim_x * delta * 2.0
+		current_angle = clampf(current_angle, PI - deg_to_rad(80.0), PI + deg_to_rad(80.0))
+		barrel.rotation = current_angle
+	# Controller fire
+	if can_shoot and Input.is_action_just_pressed("fire"):
+		_shoot()
 	_pulse += delta * 3.0
 	if _recoil > 0:
 		_recoil = maxf(0, _recoil - delta * 8.0)

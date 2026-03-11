@@ -27,6 +27,7 @@ func change_scene(scene_path: String) -> void:
 	_is_transitioning = true
 	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 
+	AudioManager.play_sfx("transition_whoosh")
 	var tween := create_tween()
 	tween.tween_property(_transition_overlay, "progress", 1.0, 0.2)
 	await tween.finished
@@ -97,3 +98,12 @@ func go_to_run_results() -> void:
 
 func go_to_event() -> void:
 	change_scene(GameConfig.EVENT_SCENE_PATH)
+
+func go_to_relic_reward() -> void:
+	change_scene(GameConfig.RELIC_REWARD_SCENE_PATH)
+
+func go_to_shop() -> void:
+	change_scene(GameConfig.SHOP_SCENE_PATH)
+
+func go_to_unlock_screen() -> void:
+	change_scene(GameConfig.UNLOCK_SCENE_PATH)

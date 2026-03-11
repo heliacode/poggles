@@ -89,3 +89,26 @@ func update_run_info(act: int, board: int, coins: int) -> void:
 	if run_info_label:
 		run_info_label.visible = true
 		run_info_label.text = "Act %d  |  Board %d  |  Coins: %d" % [act, board, coins]
+	queue_redraw()
+
+func _draw() -> void:
+	# Draw active relics as small icons at bottom of screen
+	var relics := RelicManager.active_relics
+	if relics.is_empty():
+		return
+	var icon_size := 20.0
+	var spacing := 6.0
+	var start_x := 20.0
+	var y := 680.0
+	for i in range(relics.size()):
+		var relic := relics[i]
+		var x := start_x + float(i) * (icon_size + spacing)
+		var c := relic.get_rarity_color()
+		# Small circle icon
+		var center := Vector2(x + icon_size / 2.0, y + icon_size / 2.0)
+		draw_arc(center, icon_size / 2.0, 0, TAU, 16, Color(c.r, c.g, c.b, 0.6), 1.5, true)
+		draw_circle(center, 3.0, Color(c.r, c.g, c.b, 0.5))
+		# First letter of relic name
+		var font := ThemeDB.fallback_font
+		var letter := relic.relic_name.substr(0, 1)
+		draw_string(font, Vector2(center.x - 3, center.y + 4), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(c.r, c.g, c.b, 0.8))

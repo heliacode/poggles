@@ -70,10 +70,7 @@ func _handle_node(node: Dictionary) -> void:
 		RunState.NodeType.BOARD, RunState.NodeType.ELITE, RunState.NodeType.BOSS:
 			SceneManager.change_scene(GameConfig.GAMEPLAY_SCENE_PATH)
 		RunState.NodeType.SHOP:
-			# TODO: shop scene, for now give some balls and advance
-			RunState.add_balls(1)
-			RunState.add_coins(10)
-			_build_node_rects()
+			SceneManager.go_to_shop()
 		RunState.NodeType.REST:
 			RunState.add_balls(2)
 			_build_node_rects()

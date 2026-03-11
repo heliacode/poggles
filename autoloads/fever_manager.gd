@@ -49,7 +49,10 @@ func on_ball_lost(hit_any: bool) -> void:
 
 func on_new_board() -> void:
 	streak = 0
-	# meter persists across boards (doesn't reset)
+	# meter persists across boards within an act
+
+func on_new_act() -> void:
+	reset()
 
 func _trigger_fever() -> void:
 	is_fever_active = true

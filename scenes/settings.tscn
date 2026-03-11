@@ -22,12 +22,12 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -200.0
-offset_top = -80.0
+offset_top = -120.0
 offset_right = 200.0
-offset_bottom = 120.0
+offset_bottom = 200.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="MasterLabel" type="Label" parent="UI/VBoxContainer"]
 layout_mode = 2
@@ -68,6 +68,27 @@ custom_minimum_size = Vector2(0, 20)
 max_value = 100.0
 value = 100.0
 
+[node name="FullscreenCheck" type="CheckButton" parent="UI/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 14
+text = "Fullscreen"
+
+[node name="ScreenShakeCheck" type="CheckButton" parent="UI/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 14
+text = "Screen Shake"
+
+[node name="ColorblindCheck" type="CheckButton" parent="UI/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_fonts/font = ExtResource("3_font")
+theme_override_font_sizes/font_size = 14
+text = "Colorblind Mode"
+
 [node name="BackBtn" type="Button" parent="UI/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 40)
@@ -79,4 +100,7 @@ text = "BACK"
 [connection signal="value_changed" from="UI/VBoxContainer/MasterSlider" to="." method="_on_master_changed"]
 [connection signal="value_changed" from="UI/VBoxContainer/SFXSlider" to="." method="_on_sfx_changed"]
 [connection signal="value_changed" from="UI/VBoxContainer/MusicSlider" to="." method="_on_music_changed"]
+[connection signal="toggled" from="UI/VBoxContainer/FullscreenCheck" to="." method="_on_fullscreen_toggled"]
+[connection signal="toggled" from="UI/VBoxContainer/ScreenShakeCheck" to="." method="_on_screen_shake_toggled"]
+[connection signal="toggled" from="UI/VBoxContainer/ColorblindCheck" to="." method="_on_colorblind_toggled"]
 [connection signal="pressed" from="UI/VBoxContainer/BackBtn" to="." method="_on_back_pressed"]

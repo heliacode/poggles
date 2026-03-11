@@ -85,6 +85,67 @@ func get_runs_completed() -> int:
 func get_best_run_score() -> int:
 	return _config.get_value("stats", "best_run_score", 0)
 
+# Unlocks
+func is_unlocked(unlock_id: String) -> bool:
+	return _config.get_value("unlocks", unlock_id, false)
+
+func unlock(unlock_id: String) -> void:
+	_config.set_value("unlocks", unlock_id, true)
+	save()
+
+func get_unlocked_list() -> Array:
+	var result: Array = []
+	if not _config.has_section("unlocks"):
+		return result
+	for key in _config.get_section_keys("unlocks"):
+		if _config.get_value("unlocks", key, false):
+			result.append(key)
+	return result
+
+# Ascension
+func get_ascension_level() -> int:
+	return _config.get_value("meta", "ascension", 0)
+
+func set_ascension_level(level: int) -> void:
+	_config.set_value("meta", "ascension", level)
+	save()
+
+# Tutorial
+func has_completed_tutorial() -> bool:
+	return _config.get_value("meta", "tutorial_done", false)
+
+func set_tutorial_completed() -> void:
+	_config.set_value("meta", "tutorial_done", true)
+	save()
+
+# First run flag
+func is_first_run() -> bool:
+	return get_runs_completed() == 0
+
+# Settings: fullscreen
+func get_fullscreen() -> bool:
+	return _config.get_value("settings", "fullscreen", false)
+
+func set_fullscreen(val: bool) -> void:
+	_config.set_value("settings", "fullscreen", val)
+	save()
+
+# Settings: screen shake
+func get_screen_shake() -> bool:
+	return _config.get_value("settings", "screen_shake", true)
+
+func set_screen_shake(val: bool) -> void:
+	_config.set_value("settings", "screen_shake", val)
+	save()
+
+# Settings: colorblind mode
+func get_colorblind_mode() -> bool:
+	return _config.get_value("settings", "colorblind", false)
+
+func set_colorblind_mode(val: bool) -> void:
+	_config.set_value("settings", "colorblind", val)
+	save()
+
 func add_run_stats(boards_cleared: int, score: int, pegs_hit: int, won: bool) -> void:
 	var runs := get_runs_completed()
 	_config.set_value("stats", "runs_completed", runs + 1)

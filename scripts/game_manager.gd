@@ -26,6 +26,12 @@ var _board_score := 0
 var _active_gravity_wells: Array[Dictionary] = []
 var _bot: Node = null
 var _hit_streak_positions: Array[Vector2] = []
+var _boss_data: BossData = null
+var _boss_hp := 0
+var _boss_max_hp := 0
+var _boss_phases_triggered: Array[int] = []
+var _boss_intro_done := false
+var _tutorial: Node = null
 
 @onready var cannon := $Cannon
 @onready var pegs_container := $Pegs
@@ -33,15 +39,49 @@ var _hit_streak_positions: Array[Vector2] = []
 @onready var hud := $HUD
 @onready var pause_menu := $PauseMenu
 
+var _board_mods: Dictionary = {}
+
 func _ready() -> void:
 	ball_scene = load(GameConfig.BALL_SCENE_PATH)
 	_is_roguelite = RunState.is_run_active
+	if _is_roguelite:
+		_board_mods = RunState.next_board_mods.duplicate()
 	_load_level()
 	_connect_signals()
 	_start_intro()
 	FeverManager.fever_triggered.connect(_on_fever_triggered)
 	FeverManager.on_new_board()
 	PowerUpManager.reset()
+	# Apply gameplay mods from events
+	if _board_mods.has("gravity_pegs_pre_triggered"):
+		# Pre-trigger all gravity wells at their peg positions
+		for peg in pegs_container.get_children():
+			if peg.has_method("get_special_type") and peg.get_special_type() == "gravity":
+				_active_gravity_wells.append({
+					"position": peg.global_position,
+					"time_left": GameConfig.GRAVITY_WELL_DURATION * 2.0,
+				})
+	if _board_mods.has("multiplier_pegs_pre_activated"):
+		# Pre-activate all multiplier pegs (mark as hit)
+		for peg in pegs_container.get_children():
+			if peg.has_method("get_special_type") and peg.get_special_type() == "multiplier":
+				peg.hit()
+	# Start gameplay music
+	if _is_roguelite and RunState.is_boss_board():
+		AudioManager.play_music("boss")
+	else:
+		AudioManager.play_music("gameplay")
+	# Relic board start effects
+	if _is_roguelite:
+		RelicManager.on_board_start()
+		balls_remaining = RunState.balls_remaining
+	# Tutorial for first-time players
+	if SaveData.is_first_run() and not SaveData.has_completed_tutorial():
+		var tutorial_script := load("res://scripts/tutorial.gd")
+		_tutorial = Node.new()
+		_tutorial.set_script(tutorial_script)
+		add_child(_tutorial)
+		_tutorial.start_tutorial(self)
 	if OS.has_feature("playtest") or OS.get_cmdline_args().has("--bot"):
 		_enable_bot()
 
@@ -56,6 +96,15 @@ func _enable_bot(difficulty: int = 1) -> void:
 func _load_level() -> void:
 	if _is_roguelite:
 		var params := RunState.get_difficulty_params()
+		# Boss-specific setup
+		if RunState.is_boss_board():
+			_boss_data = BossData.get_boss(RunState.current_act)
+			_boss_hp = _boss_data.hp
+			_boss_max_hp = _boss_data.hp
+			_boss_phases_triggered = []
+			params["template"] = _boss_data.layout_type
+			params["total_pegs"] += 6
+			params["orange_count"] += 4
 		_level_data = BoardGenerator.generate(params)
 		balls_remaining = RunState.balls_remaining
 	else:
@@ -83,9 +132,16 @@ func _connect_peg_signals() -> void:
 func _start_intro() -> void:
 	state = State.LEVEL_INTRO
 	cannon.can_shoot = false
+	var delay := 0.5
+	if _boss_data:
+		delay = 2.5  # Longer intro for boss
+		_boss_intro_done = false
 	var tween := create_tween()
-	tween.tween_interval(0.5)
-	tween.tween_callback(_start_playing)
+	tween.tween_interval(delay)
+	tween.tween_callback(func():
+		_boss_intro_done = true
+		_start_playing()
+	)
 
 func _start_playing() -> void:
 	state = State.PLAYING
@@ -122,14 +178,116 @@ func _process(delta: float) -> void:
 			var to_well: Vector2 = well["position"] - current_ball.global_position
 			var dist := to_well.length()
 			if dist < GameConfig.GRAVITY_WELL_RADIUS and dist > 5.0:
-				var strength := GameConfig.GRAVITY_WELL_FORCE / (dist * dist) * 100.0
+				var strength := GameConfig.GRAVITY_WELL_FORCE * RelicManager.get_gravity_force_multiplier() / (dist * dist) * 100.0
 				strength = minf(strength, GameConfig.GRAVITY_WELL_MAX_ACCEL)
 				current_ball.apply_central_force(to_well.normalized() * strength)
 			i -= 1
 
+func _check_boss_phases() -> void:
+	if not _boss_data:
+		return
+	var hp_ratio := float(_boss_hp) / float(_boss_max_hp)
+	for i in range(_boss_data.phases.size()):
+		if i in _boss_phases_triggered:
+			continue
+		var phase: Dictionary = _boss_data.phases[i]
+		if hp_ratio <= phase["hp_threshold"]:
+			_boss_phases_triggered.append(i)
+			_execute_boss_phase(phase)
+
+func _execute_boss_phase(phase: Dictionary) -> void:
+	_flash_alpha = 0.3
+	_flash_color = Color(1.0, 0.2, 0.2)
+	_shake_amount = 8.0
+	match phase["action"]:
+		"spawn_armored":
+			# Spawn new armored pegs
+			var count: int = phase.get("count", 2)
+			var peg_script := load("res://scripts/peg.gd")
+			for _i in range(count):
+				var pos := Vector2(
+					randf_range(BoardGenerator.PLAY_AREA.position.x + 50, BoardGenerator.PLAY_AREA.end.x - 50),
+					randf_range(BoardGenerator.PLAY_AREA.position.y + 50, BoardGenerator.PLAY_AREA.end.y - 50)
+				)
+				var peg := StaticBody2D.new()
+				peg.set_script(peg_script)
+				peg.position = pos
+				peg.peg_type = "blue"
+				peg.special_type = "armored"
+				pegs_container.add_child(peg)
+				if peg.has_signal("peg_hit"):
+					peg.peg_hit.connect(_on_peg_hit)
+		"narrow_bucket":
+			# Make bucket narrower
+			if bucket:
+				bucket.scale.x *= 0.7
+		"add_movement":
+			# Future: make pegs move (handled in peg.gd with movement component)
+			pass
+		"spawn_gravity":
+			var count: int = phase.get("count", 1)
+			for _i in range(count):
+				var pos := Vector2(
+					randf_range(BoardGenerator.PLAY_AREA.position.x + 100, BoardGenerator.PLAY_AREA.end.x - 100),
+					randf_range(BoardGenerator.PLAY_AREA.position.y + 100, BoardGenerator.PLAY_AREA.end.y - 100)
+				)
+				_active_gravity_wells.append({
+					"position": pos,
+					"time_left": GameConfig.GRAVITY_WELL_DURATION * 3.0,
+				})
+		"hide_pegs":
+			# Make un-hit pegs semi-invisible
+			for peg in pegs_container.get_children():
+				if peg.has_method("is_hit") and not peg.is_hit():
+					peg.modulate.a = 0.15
+		"shrink_area":
+			# Visual warning - shake and flash
+			_shake_amount = 10.0
+
 func _draw() -> void:
 	if _flash_alpha > 0:
 		draw_rect(Rect2(0, 0, 1280, 720), Color(_flash_color.r, _flash_color.g, _flash_color.b, _flash_alpha))
+
+	# Boss intro overlay
+	if _boss_data and not _boss_intro_done:
+		var font := ThemeDB.fallback_font
+		var cx := 640.0
+		draw_rect(Rect2(0, 0, 1280, 720), Color(0.0, 0.0, 0.0, 0.6))
+		var name_size := font.get_string_size(_boss_data.boss_name, HORIZONTAL_ALIGNMENT_CENTER, -1, 42)
+		draw_string(font, Vector2(cx - name_size.x / 2.0, 320), _boss_data.boss_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(1.0, 0.2, 0.2))
+		var title_size := font.get_string_size(_boss_data.title, HORIZONTAL_ALIGNMENT_CENTER, -1, 18)
+		draw_string(font, Vector2(cx - title_size.x / 2.0, 360), _boss_data.title, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.8, 0.4, 0.4, 0.7))
+
+	# Boss HP bar
+	if _boss_data and _boss_intro_done:
+		_draw_boss_hp_bar()
+
+func _draw_boss_hp_bar() -> void:
+	var font := ThemeDB.fallback_font
+	var bar_width := 400.0
+	var bar_height := 12.0
+	var bar_x := (1280.0 - bar_width) / 2.0
+	var bar_y := 120.0
+	# Background
+	draw_rect(Rect2(bar_x - 1, bar_y - 1, bar_width + 2, bar_height + 2), Color(0.15, 0.05, 0.05, 0.8))
+	# Fill
+	var ratio := float(_boss_hp) / float(_boss_max_hp)
+	var fill_color := Color(1.0, 0.2, 0.1)
+	if ratio < 0.25:
+		fill_color = Color(1.0, 0.1, 0.05)
+	elif ratio < 0.5:
+		fill_color = Color(1.0, 0.5, 0.1)
+	draw_rect(Rect2(bar_x, bar_y, bar_width * ratio, bar_height), fill_color)
+	# Border
+	draw_rect(Rect2(bar_x, bar_y, bar_width, bar_height), Color(1.0, 0.3, 0.2, 0.6), false, 1.5)
+	# Name
+	var label := _boss_data.boss_name
+	var label_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14)
+	draw_string(font, Vector2(bar_x + (bar_width - label_size.x) / 2.0, bar_y - 6), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.4, 0.3, 0.9))
+	# HP text
+	var hp_text := "%d / %d" % [_boss_hp, _boss_max_hp]
+	var hp_size := font.get_string_size(hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10)
+	draw_string(font, Vector2(bar_x + bar_width + 8, bar_y + bar_height - 1), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.5, 0.4, 0.7))
 
 func _count_orange_pegs() -> void:
 	orange_pegs_total = 0
@@ -157,6 +315,10 @@ func _on_ball_fired(pos: Vector2, direction: Vector2, power: float) -> void:
 	add_child(current_ball)
 	current_ball.launch(direction * power)
 	current_ball.ball_lost.connect(_on_ball_lost)
+	AudioManager.play_sfx("cannon_fire")
+	AudioManager.reset_combo_pitch()
+	if _tutorial and _tutorial.is_active():
+		_tutorial.on_event("fire")
 
 func _on_ball_lost() -> void:
 	# If the ball that was lost is a clone, just remove it
@@ -175,6 +337,14 @@ func _on_ball_lost() -> void:
 		if _is_roguelite:
 			RunState.add_balls(1)
 		_spawn_score_popup("FEVER BALL!", Color(1.0, 0.85, 0.0), Vector2(640, 360))
+	else:
+		# Relic ball-lost hooks
+		var lost_result := RelicManager.on_ball_lost(hit_any)
+		if lost_result["refund_ball"]:
+			balls_remaining += 1
+			if _is_roguelite:
+				RunState.add_balls(1)
+			_spawn_score_popup("SAVED!", Color(0.3, 1.0, 0.5), Vector2(640, 360))
 	_combo_count = 0
 	_hit_streak_positions.clear()
 	if current_ball:
@@ -188,6 +358,7 @@ func _on_ball_lost() -> void:
 	if orange_pegs_remaining <= 0:
 		_on_board_cleared()
 	elif balls_remaining <= 0:
+		AudioManager.play_sfx("ball_lost")
 		_on_out_of_balls()
 	else:
 		state = State.PLAYING
@@ -212,20 +383,30 @@ func _celebrate_clear() -> void:
 
 func _on_board_cleared() -> void:
 	state = State.LEVEL_COMPLETE
+	AudioManager.play_sfx("level_complete")
 	_celebrate_clear()
 	await get_tree().create_timer(1.0).timeout
 
 	if _is_roguelite:
+		# Apply relic board clear bonuses
+		var clear_result := RelicManager.on_board_clear()
+		if clear_result["coin_bonus"] > 0:
+			RunState.add_coins(clear_result["coin_bonus"])
+		if clear_result["ball_bonus"] > 0:
+			RunState.add_balls(clear_result["ball_bonus"])
+
 		var prev_act := RunState.current_act
 		RunState.complete_board(orange_pegs_total, orange_pegs_total, _board_score)
 		# Sync balls back (complete_board may have added refund)
 		balls_remaining = RunState.balls_remaining
 		if RunState.is_run_active:
 			if RunState.current_act != prev_act:
-				# New act — show act intro first
+				# New act — reset fever meter and show act intro
+				FeverManager.on_new_act()
 				SceneManager.go_to_act_intro(RunState.current_act)
 			else:
-				SceneManager.go_to_route_map()
+				# Show relic reward screen after board clear
+				SceneManager.go_to_relic_reward()
 		else:
 			# Run was won (act 3 boss cleared)
 			SceneManager.go_to_run_results()
@@ -234,6 +415,7 @@ func _on_board_cleared() -> void:
 
 func _on_out_of_balls() -> void:
 	state = State.GAME_OVER
+	AudioManager.play_sfx("game_over")
 	await get_tree().create_timer(1.0).timeout
 
 	if _is_roguelite:
@@ -245,10 +427,14 @@ func _on_out_of_balls() -> void:
 		SceneManager.go_to_results(score, orange_pegs_total, orange_pegs_total - orange_pegs_remaining, _balls_used)
 
 func _on_ball_caught() -> void:
+	AudioManager.play_sfx("ball_catch")
 	balls_remaining += 1
 	if _is_roguelite:
 		RunState.add_balls(1)
 		RunState.on_bucket_catch()
+	var catch_result := RelicManager.on_ball_caught()
+	if catch_result["score_bonus"] > 0:
+		_add_score(catch_result["score_bonus"])
 	_update_hud()
 	_spawn_score_popup("+1 BALL!", Color(0.3, 1.0, 0.5), bucket.global_position + Vector2(0, -30))
 
@@ -257,6 +443,9 @@ func _on_peg_hit(peg: Node) -> void:
 	var special: String = peg.get_special_type() if peg.has_method("get_special_type") else ""
 
 	_combo_count += 1
+
+	# Audio
+	AudioManager.play_peg_hit(peg_type)
 
 	# Fever system
 	FeverManager.on_peg_hit(peg_type)
@@ -267,10 +456,29 @@ func _on_peg_hit(peg: Node) -> void:
 		multiplier = current_ball.score_multiplier
 
 	var points := int(float(GameConfig.PEG_SCORES.get(peg_type, 0)) * multiplier)
-	# During fever: 3x points
+	# Board mod: score multiplier bonus
+	if _board_mods.has("score_multiplier"):
+		points = int(float(points) * (1.0 + float(_board_mods["score_multiplier"])))
+	# Board mod: extra score per orange
+	if peg_type == "orange" and RunState.permanent_orange_score_bonus > 0:
+		points += RunState.permanent_orange_score_bonus
+	# Relic bonuses
+	var relic_result := RelicManager.on_peg_hit(peg_type, _combo_count, peg)
+	points += relic_result["score_bonus"]
+	if relic_result["coin_bonus"] > 0:
+		RunState.add_coins(relic_result["coin_bonus"])
+	# Relic: combo_breaker triggers mini-bomb
+	if relic_result["trigger_bomb"]:
+		_effect_bomb(peg)
+	# During fever: multiplier from relics
 	if FeverManager.is_fever_active:
-		points *= 3
+		points *= RelicManager.get_fever_multiplier()
 	_add_score(points)
+
+	# Boss HP damage — orange pegs damage the boss
+	if _boss_data and peg_type == "orange":
+		_boss_hp = maxi(0, _boss_hp - points)
+		_check_boss_phases()
 	_shake_amount = clampf(float(points) / 50.0 * (1.0 + _combo_count * 0.3), 1.0, 8.0)
 	var color: Color = GameConfig.SCORE_POPUP_COLORS.get(peg_type, Color.WHITE)
 	var popup_text := "+%d" % points
@@ -306,10 +514,16 @@ func _on_peg_hit(peg: Node) -> void:
 
 	# Handle special peg effects
 	match special:
-		"bomb": _effect_bomb(peg)
-		"chain": _effect_chain(peg)
+		"bomb":
+			_effect_bomb(peg)
+			AudioManager.play_sfx("bomb_explode")
+		"chain":
+			_effect_chain(peg)
+			AudioManager.play_sfx("chain_zap")
 		"multiplier": _effect_multiplier()
-		"gravity": _effect_gravity(peg)
+		"gravity":
+			_effect_gravity(peg)
+			AudioManager.play_sfx("gravity_well")
 
 	# Overload power-up: mega bomb on next peg hit
 	if current_ball and current_ball.overload_pending:
@@ -326,15 +540,21 @@ func _on_peg_hit(peg: Node) -> void:
 		var pu: String = peg.power_up_type
 		if pu != "" and current_ball:
 			PowerUpManager.activate(pu, current_ball)
+			match pu:
+				"prism_split": AudioManager.play_sfx("powerup_prism")
+				"overdrive": AudioManager.play_sfx("powerup_overdrive")
+				"phantom_pass": AudioManager.play_sfx("powerup_phantom")
+				"overload": AudioManager.play_sfx("powerup_overload")
 
 func _effect_bomb(peg: Node2D) -> void:
 	var center := peg.global_position
+	var radius := GameConfig.BOMB_RADIUS * RelicManager.get_bomb_radius_multiplier()
 	for other in pegs_container.get_children():
 		if other == peg or not other.has_method("hit"):
 			continue
 		if other.is_hit():
 			continue
-		if center.distance_to(other.global_position) <= GameConfig.BOMB_RADIUS:
+		if center.distance_to(other.global_position) <= radius:
 			other.hit()
 
 func _effect_chain(peg: Node2D) -> void:
@@ -352,7 +572,7 @@ func _effect_chain(peg: Node2D) -> void:
 	# Sort by distance
 	candidates.sort_custom(func(a, b): return a["dist"] < b["dist"])
 	# Hit up to CHAIN_MAX_TARGETS with visual bolt + delay
-	var targets := mini(GameConfig.CHAIN_MAX_TARGETS, candidates.size())
+	var targets := mini(GameConfig.CHAIN_MAX_TARGETS + RelicManager.get_chain_extra_targets(), candidates.size())
 	for i in range(targets):
 		var target: Node = candidates[i]["peg"]
 		# Spawn chain bolt visual (simple line effect)
@@ -381,6 +601,7 @@ func _on_fever_triggered() -> void:
 	_flash_alpha = 0.3
 	_flash_color = Color(1.0, 0.85, 0.0)  # Gold flash
 	_shake_amount = 5.0
+	AudioManager.play_sfx("fever_trigger")
 
 func _add_score(points: int) -> void:
 	score += points
