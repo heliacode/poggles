@@ -8,6 +8,7 @@ extends CanvasLayer
 var _fever_meter := 0.0
 var _fever_pulse := 0.0
 var _fever_bar: Control
+var _relic_display: Control
 
 func _ready() -> void:
 	if run_info_label:
@@ -25,6 +26,15 @@ func _ready() -> void:
 	add_child(_fever_bar)
 	_fever_bar.draw.connect(_draw_fever_bar)
 	FeverManager.meter_changed.connect(_on_fever_meter_changed)
+	# Create relic display control
+	_relic_display = Control.new()
+	_relic_display.name = "RelicDisplay"
+	_relic_display.custom_minimum_size = Vector2(1280, 40)
+	_relic_display.position = Vector2(0, 670)
+	_relic_display.size = Vector2(1280, 40)
+	_relic_display.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_relic_display)
+	_relic_display.draw.connect(_draw_relics)
 
 func _process(delta: float) -> void:
 	if _fever_meter >= 1.0:
@@ -89,9 +99,10 @@ func update_run_info(act: int, board: int, coins: int) -> void:
 	if run_info_label:
 		run_info_label.visible = true
 		run_info_label.text = "Act %d  |  Board %d  |  Coins: %d" % [act, board, coins]
-	queue_redraw()
+	if _relic_display:
+		_relic_display.queue_redraw()
 
-func _draw() -> void:
+func _draw_relics() -> void:
 	# Draw active relics as small icons at bottom of screen
 	var relics := RelicManager.active_relics
 	if relics.is_empty():
@@ -99,16 +110,16 @@ func _draw() -> void:
 	var icon_size := 20.0
 	var spacing := 6.0
 	var start_x := 20.0
-	var y := 680.0
+	var y := 0.0
 	for i in range(relics.size()):
 		var relic := relics[i]
 		var x := start_x + float(i) * (icon_size + spacing)
 		var c := relic.get_rarity_color()
 		# Small circle icon
 		var center := Vector2(x + icon_size / 2.0, y + icon_size / 2.0)
-		draw_arc(center, icon_size / 2.0, 0, TAU, 16, Color(c.r, c.g, c.b, 0.6), 1.5, true)
-		draw_circle(center, 3.0, Color(c.r, c.g, c.b, 0.5))
+		_relic_display.draw_arc(center, icon_size / 2.0, 0, TAU, 16, Color(c.r, c.g, c.b, 0.6), 1.5, true)
+		_relic_display.draw_circle(center, 3.0, Color(c.r, c.g, c.b, 0.5))
 		# First letter of relic name
 		var font := ThemeDB.fallback_font
 		var letter := relic.relic_name.substr(0, 1)
-		draw_string(font, Vector2(center.x - 3, center.y + 4), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(c.r, c.g, c.b, 0.8))
+		_relic_display.draw_string(font, Vector2(center.x - 3, center.y + 4), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(c.r, c.g, c.b, 0.8))

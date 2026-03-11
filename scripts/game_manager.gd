@@ -123,9 +123,12 @@ func _load_level() -> void:
 	if _level_data:
 		var peg_script := load("res://scripts/peg.gd")
 		LevelLoader.spawn_pegs(_level_data, pegs_container, peg_script)
-		await get_tree().process_frame
-		_connect_peg_signals()
-		_count_orange_pegs()
+		# Defer signal connection to ensure pegs are fully initialized
+		call_deferred("_post_spawn_setup")
+
+func _post_spawn_setup() -> void:
+	_connect_peg_signals()
+	_count_orange_pegs()
 	_update_hud()
 
 func _connect_signals() -> void:

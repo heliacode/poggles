@@ -22,7 +22,7 @@ func _process(delta: float) -> void:
 	# Controller aim
 	var aim_x := Input.get_axis("aim_left", "aim_right")
 	if absf(aim_x) > 0.1:
-		var current_angle := barrel.rotation
+		var current_angle: float = barrel.rotation
 		current_angle += aim_x * delta * 2.0
 		current_angle = clampf(current_angle, PI - deg_to_rad(80.0), PI + deg_to_rad(80.0))
 		barrel.rotation = current_angle
