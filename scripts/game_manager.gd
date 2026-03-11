@@ -55,12 +55,10 @@ func _enable_bot(difficulty: int = 1) -> void:
 
 func _load_level() -> void:
 	if _is_roguelite:
-		# Procedural generation from RunState
 		var params := RunState.get_difficulty_params()
 		_level_data = BoardGenerator.generate(params)
 		balls_remaining = RunState.balls_remaining
 	else:
-		# Practice mode: load from file
 		_level_data = LevelLoader.load_level(SceneManager.current_level)
 		if _level_data:
 			balls_remaining = _level_data.starting_balls

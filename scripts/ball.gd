@@ -124,9 +124,9 @@ func _physics_process(delta: float) -> void:
 
 	# Phantom pass: detect nearby pegs via overlap
 	if phantom_active:
-		var pegs_node: Node = get_parent().get_node_or_null("Pegs")
-		if pegs_node:
-			for peg in pegs_node.get_children():
+		var phantom_pegs = get_parent().get_node_or_null("Pegs")
+		if phantom_pegs:
+			for peg in phantom_pegs.get_children():
 				if peg.has_method("hit") and peg.has_method("is_hit") and not peg.is_hit():
 					if global_position.distance_to(peg.global_position) < GameConfig.PEG_RADIUS + GameConfig.BALL_RADIUS + 2:
 						peg.hit()
