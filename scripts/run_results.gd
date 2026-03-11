@@ -49,6 +49,9 @@ func _draw() -> void:
 		["Score", _score, "", Color(0.3, 0.85, 1.0)],
 		["Boards Cleared", _boards_cleared, " / %d" % RunState.get_total_boards(), Color(0.5, 0.8, 1.0)],
 		["Pegs Hit", _pegs_hit, "", Color(0.4, 0.7, 1.0)],
+		["Orange Cleared", RunState.orange_cleared_this_run, "", Color(1.0, 0.6, 0.1)],
+		["Relics Held", RelicManager.get_relic_count(), "", Color(0.8, 0.5, 1.0)],
+		["Coins Earned", RunState.coins, "", Color(1.0, 0.85, 0.0)],
 		["Stardust Earned", _stardust_earned, "", Color(1.0, 0.85, 0.3)],
 	]
 

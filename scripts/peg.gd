@@ -62,12 +62,16 @@ func _draw() -> void:
 	if _hit_flash > 0:
 		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS + 8.0 * _hit_flash, Color(1, 1, 1, _hit_flash * 0.4))
 
-	# Main wireframe ring
+	# Main wireframe shape — colorblind mode uses distinct shapes per type
 	var ring_alpha := 0.8 + pulse * 0.2
 	if _hit:
 		ring_alpha = 1.0
-	draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS, 0, TAU, 48, Color(base.r, base.g, base.b, ring_alpha), 2.0, true)
-	draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * 0.6, 0, TAU, 32, Color(base.r, base.g, base.b, ring_alpha * 0.4), 1.0, true)
+
+	if SaveData.get_colorblind_mode():
+		_draw_colorblind_shape(base, ring_alpha, pulse)
+	else:
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS, 0, TAU, 48, Color(base.r, base.g, base.b, ring_alpha), 2.0, true)
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * 0.6, 0, TAU, 32, Color(base.r, base.g, base.b, ring_alpha * 0.4), 1.0, true)
 
 	var dot_size := 2.5 + pulse * 0.5
 	draw_circle(Vector2.ZERO, dot_size, Color(base.r, base.g, base.b, ring_alpha))
@@ -82,6 +86,50 @@ func _draw() -> void:
 		var label: String = power_up_type.substr(0, 1).to_upper()
 		var font: Font = ThemeDB.fallback_font
 		draw_string(font, Vector2(-4, -GameConfig.PEG_RADIUS - 8), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 1.0, 0.3, 0.7))
+
+func _draw_colorblind_shape(base: Color, ring_alpha: float, pulse: float) -> void:
+	var r := GameConfig.PEG_RADIUS
+	var c := Color(base.r, base.g, base.b, ring_alpha)
+	var c_inner := Color(base.r, base.g, base.b, ring_alpha * 0.4)
+	match peg_type:
+		"blue":
+			# Circle (default) — same as normal
+			draw_arc(Vector2.ZERO, r, 0, TAU, 48, c, 2.0, true)
+			draw_arc(Vector2.ZERO, r * 0.6, 0, TAU, 32, c_inner, 1.0, true)
+		"orange":
+			# Diamond shape
+			var pts := PackedVector2Array([
+				Vector2(0, -r), Vector2(r, 0), Vector2(0, r), Vector2(-r, 0), Vector2(0, -r)
+			])
+			draw_polyline(pts, c, 2.0)
+			var inner := r * 0.5
+			var ipts := PackedVector2Array([
+				Vector2(0, -inner), Vector2(inner, 0), Vector2(0, inner), Vector2(-inner, 0), Vector2(0, -inner)
+			])
+			draw_polyline(ipts, c_inner, 1.0)
+		"green":
+			# Triangle
+			var pts := PackedVector2Array([
+				Vector2(0, -r), Vector2(r * 0.866, r * 0.5), Vector2(-r * 0.866, r * 0.5), Vector2(0, -r)
+			])
+			draw_polyline(pts, c, 2.0)
+			var inner := r * 0.5
+			var ipts := PackedVector2Array([
+				Vector2(0, -inner), Vector2(inner * 0.866, inner * 0.5), Vector2(-inner * 0.866, inner * 0.5), Vector2(0, -inner)
+			])
+			draw_polyline(ipts, c_inner, 1.0)
+		"purple":
+			# Star shape (5-pointed)
+			var outer_pts := PackedVector2Array()
+			for i in range(5):
+				var angle := TAU * float(i) / 5.0 - PI / 2.0
+				outer_pts.append(Vector2.from_angle(angle) * r)
+				var inner_angle := angle + TAU / 10.0
+				outer_pts.append(Vector2.from_angle(inner_angle) * (r * 0.4))
+			outer_pts.append(outer_pts[0])
+			draw_polyline(outer_pts, c, 2.0)
+		_:
+			draw_arc(Vector2.ZERO, r, 0, TAU, 48, c, 2.0, true)
 
 func _draw_special(ring_alpha: float, pulse: float) -> void:
 	match special_type:

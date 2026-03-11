@@ -30,6 +30,9 @@ func has_relic(id: String) -> bool:
 func get_active_ids() -> Array[String]:
 	return _relic_ids.duplicate()
 
+func get_relic_count() -> int:
+	return active_relics.size()
+
 func on_board_start() -> void:
 	_first_ball_lost_this_board = false
 	_first_shot_this_board = true

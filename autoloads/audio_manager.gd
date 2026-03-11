@@ -8,8 +8,9 @@ var _combo_pitch := 1.0
 var _combo_count := 0
 
 const SFX_POOL_SIZE := 16
-const COMBO_PITCH_STEP := 0.05
-const COMBO_PITCH_MAX := 2.0
+# Semitone-based pitch stepping: each hit goes up 1 semitone (12th root of 2)
+const SEMITONE := 1.05946309436  # 2^(1/12)
+const COMBO_PITCH_MAX_SEMITONES := 12  # One octave max
 const COMBO_PITCH_RESET := 1.0
 
 # Preloaded procedural SFX
@@ -90,7 +91,9 @@ func play_sfx_pitched(sfx_name: String, pitch: float) -> void:
 
 func play_peg_hit(peg_type: String) -> void:
 	_combo_count += 1
-	_combo_pitch = minf(COMBO_PITCH_RESET + float(_combo_count) * COMBO_PITCH_STEP, COMBO_PITCH_MAX)
+	# Semitone-based ascending pitch: each hit goes up one semitone, capped at 1 octave
+	var semitones := mini(_combo_count, COMBO_PITCH_MAX_SEMITONES)
+	_combo_pitch = COMBO_PITCH_RESET * pow(SEMITONE, float(semitones))
 	var sfx_name := "peg_hit"
 	if peg_type == "orange":
 		sfx_name = "orange_clear"

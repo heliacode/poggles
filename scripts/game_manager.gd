@@ -32,6 +32,14 @@ var _boss_max_hp := 0
 var _boss_phases_triggered: Array[int] = []
 var _boss_intro_done := false
 var _tutorial: Node = null
+var _last_peg_slowmo := false
+var _last_peg_zoom_target := Vector2.ZERO
+var _last_peg_zoom_progress := 0.0
+var _near_miss_pegs: Array[Node] = []
+var _bucket_catch_sparks := false
+var _score_tally_items: Array[Dictionary] = []
+var _score_tally_time := 0.0
+var _showing_tally := false
 
 @onready var cannon := $Cannon
 @onready var pegs_container := $Pegs
@@ -156,14 +164,36 @@ func _process(delta: float) -> void:
 
 	if _shake_amount > 0:
 		_shake_amount = max(0, _shake_amount - _shake_decay * delta)
-		_camera_offset = Vector2(
-			randf_range(-_shake_amount, _shake_amount),
-			randf_range(-_shake_amount, _shake_amount)
-		)
-		pegs_container.position = _camera_offset
+		if SaveData.get_screen_shake():
+			_camera_offset = Vector2(
+				randf_range(-_shake_amount, _shake_amount),
+				randf_range(-_shake_amount, _shake_amount)
+			)
+			pegs_container.position = _camera_offset
 	elif _camera_offset != Vector2.ZERO:
 		_camera_offset = Vector2.ZERO
 		pegs_container.position = Vector2.ZERO
+
+	# Near-miss detection: ball passes within 5px of un-hit peg
+	if current_ball:
+		for peg in pegs_container.get_children():
+			if peg.has_method("is_hit") and not peg.is_hit():
+				var dist := current_ball.global_position.distance_to(peg.global_position)
+				var near_threshold := GameConfig.PEG_RADIUS + GameConfig.BALL_RADIUS + 5.0
+				if dist < near_threshold and dist > GameConfig.PEG_RADIUS + GameConfig.BALL_RADIUS and peg not in _near_miss_pegs:
+					_near_miss_pegs.append(peg)
+					peg.flash_celebrate()
+					AudioManager.play_sfx("near_miss")
+
+	# Last peg zoom effect
+	if _last_peg_slowmo:
+		_last_peg_zoom_progress = minf(_last_peg_zoom_progress + delta * 2.0, 1.0)
+		queue_redraw()
+
+	# Score tally animation
+	if _showing_tally:
+		_score_tally_time += delta
+		queue_redraw()
 
 	# Apply gravity well forces to ball
 	if current_ball and not _active_gravity_wells.is_empty():
@@ -262,6 +292,41 @@ func _draw() -> void:
 	if _boss_data and _boss_intro_done:
 		_draw_boss_hp_bar()
 
+	# Last peg zoom vignette effect
+	if _last_peg_slowmo and _last_peg_zoom_progress > 0:
+		var vignette_alpha := _last_peg_zoom_progress * 0.3
+		# Dark vignette around edges
+		draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, vignette_alpha * 0.4))
+		# Bright ring around target
+		var target_local := _last_peg_zoom_target - global_position
+		var ring_radius := 60.0 - _last_peg_zoom_progress * 20.0
+		draw_arc(target_local, ring_radius, 0, TAU, 48, Color(1.0, 0.6, 0.1, vignette_alpha), 2.0, true)
+		draw_arc(target_local, ring_radius + 8, 0, TAU, 48, Color(1.0, 0.6, 0.1, vignette_alpha * 0.3), 1.0, true)
+
+	# Score tally overlay
+	if _showing_tally:
+		var font := ThemeDB.fallback_font
+		var cx := 640.0
+		var base_y := 240.0
+		draw_rect(Rect2(0, 0, 1280, 720), Color(0, 0, 0, 0.5))
+		for item in _score_tally_items:
+			if _score_tally_time < item["delay"]:
+				continue
+			var item_alpha := minf((_score_tally_time - item["delay"]) * 4.0, 1.0)
+			var y_offset := (1.0 - item_alpha) * -15.0
+			var label: String = item["label"]
+			var value: String = item["value"]
+			if value == "":
+				# Header line
+				var sz := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 32)
+				draw_string(font, Vector2(cx - sz.x / 2.0, base_y + y_offset), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color(1.0, 0.85, 0.3, item_alpha))
+			else:
+				var lsz := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20)
+				var vsz := font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, 20)
+				draw_string(font, Vector2(cx - 120, base_y + y_offset), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.7, 0.85, 1.0, item_alpha))
+				draw_string(font, Vector2(cx + 80, base_y + y_offset), value, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(1.0, 1.0, 1.0, item_alpha))
+			base_y += 40.0
+
 func _draw_boss_hp_bar() -> void:
 	var font := ThemeDB.fallback_font
 	var bar_width := 400.0
@@ -347,6 +412,7 @@ func _on_ball_lost() -> void:
 			_spawn_score_popup("SAVED!", Color(0.3, 1.0, 0.5), Vector2(640, 360))
 	_combo_count = 0
 	_hit_streak_positions.clear()
+	_near_miss_pegs.clear()
 	if current_ball:
 		current_ball.queue_free()
 		current_ball = null
@@ -383,9 +449,25 @@ func _celebrate_clear() -> void:
 
 func _on_board_cleared() -> void:
 	state = State.LEVEL_COMPLETE
+	# Ensure time scale is normal
+	Engine.time_scale = 1.0
+	_last_peg_slowmo = false
+	_last_peg_zoom_progress = 0.0
 	AudioManager.play_sfx("level_complete")
 	_celebrate_clear()
-	await get_tree().create_timer(1.0).timeout
+	# Score tally overlay
+	_score_tally_items = [
+		{"label": "BOARD CLEARED!", "value": "", "delay": 0.0},
+		{"label": "Pegs Hit", "value": str(orange_pegs_total), "delay": 0.3},
+		{"label": "Board Score", "value": str(_board_score), "delay": 0.6},
+		{"label": "Balls Left", "value": str(balls_remaining), "delay": 0.9},
+	]
+	if _combo_count > 0:
+		_score_tally_items.append({"label": "Best Combo", "value": "x%d" % _combo_count, "delay": 1.2})
+	_score_tally_time = 0.0
+	_showing_tally = true
+	await get_tree().create_timer(2.5).timeout
+	_showing_tally = false
 
 	if _is_roguelite:
 		# Apply relic board clear bonuses
@@ -415,6 +497,9 @@ func _on_board_cleared() -> void:
 
 func _on_out_of_balls() -> void:
 	state = State.GAME_OVER
+	Engine.time_scale = 1.0
+	_last_peg_slowmo = false
+	_last_peg_zoom_progress = 0.0
 	AudioManager.play_sfx("game_over")
 	await get_tree().create_timer(1.0).timeout
 
@@ -437,6 +522,15 @@ func _on_ball_caught() -> void:
 		_add_score(catch_result["score_bonus"])
 	_update_hud()
 	_spawn_score_popup("+1 BALL!", Color(0.3, 1.0, 0.5), bucket.global_position + Vector2(0, -30))
+	# Bucket catch sparkle burst
+	for i in range(12):
+		var spark := _CelebrationSpark.new()
+		spark._angle = TAU * float(i) / 12.0 + randf() * 0.2
+		spark._speed = randf_range(80, 200)
+		spark._color = Color(0.3, 1.0, 0.5)
+		spark._lifetime = 0.6
+		spark.global_position = bucket.global_position
+		add_child(spark)
 
 func _on_peg_hit(peg: Node) -> void:
 	var peg_type: String = peg.get_peg_type()
@@ -624,6 +718,19 @@ func _on_orange_peg_cleared() -> void:
 	orange_pegs_remaining -= 1
 	orange_pegs_changed.emit(orange_pegs_remaining)
 	_update_hud()
+	# Last peg slow-mo: when 1 orange remains, slow time and zoom
+	if orange_pegs_remaining == 1 and not _last_peg_slowmo:
+		_last_peg_slowmo = true
+		Engine.time_scale = 0.3
+		# Find the last orange peg for zoom target
+		for peg in pegs_container.get_children():
+			if peg.has_method("get_peg_type") and peg.get_peg_type() == "orange" and not peg.is_hit():
+				_last_peg_zoom_target = peg.global_position
+				break
+	elif orange_pegs_remaining == 0 and _last_peg_slowmo:
+		_last_peg_slowmo = false
+		_last_peg_zoom_progress = 0.0
+		Engine.time_scale = 1.0
 
 func _remove_hit_pegs() -> void:
 	for peg in pegs_container.get_children():
