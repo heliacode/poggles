@@ -1,0 +1,426 @@
+[gd_scene load_steps=10 format=3 uid="uid://dp80pqfamjp3f"]
+
+[ext_resource type="Script" uid="uid://q0u2wpcet706" path="res://scripts/game_manager.gd" id="1_lbhrr"]
+[ext_resource type="Script" uid="uid://dabph5mwi2ts7" path="res://scripts/cannon.gd" id="2_iywne"]
+[ext_resource type="Script" uid="uid://b7fy8y21rk4k3" path="res://scripts/peg.gd" id="3_p57ef"]
+[ext_resource type="Script" uid="uid://w1qaf3h402ws" path="res://scripts/bucket.gd" id="4_u5sy4"]
+[ext_resource type="Script" path="res://scripts/background.gd" id="5_bg"]
+[ext_resource type="FontFile" path="res://assets/ui/KenneyFuture.ttf" id="6_font"]
+
+[sub_resource type="RectangleShape2D" id="wall_left"]
+size = Vector2(20, 720)
+
+[sub_resource type="RectangleShape2D" id="wall_right"]
+size = Vector2(20, 720)
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_lbhrr")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.01, 0.01, 0.03, 1)
+script = ExtResource("5_bg")
+
+[node name="Cannon" type="Node2D" parent="."]
+position = Vector2(640, 30)
+script = ExtResource("2_iywne")
+
+[node name="Barrel" type="Node2D" parent="Cannon"]
+
+[node name="BarrelSprite" type="ColorRect" parent="Cannon/Barrel"]
+offset_left = -8.0
+offset_top = -50.0
+offset_right = 8.0
+offset_bottom = 0.0
+color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="SpawnPoint" type="Marker2D" parent="Cannon/Barrel"]
+position = Vector2(0, -60)
+
+[node name="AimLine" type="Line2D" parent="Cannon"]
+
+[node name="Pegs" type="Node2D" parent="."]
+
+[node name="Peg_1" type="StaticBody2D" parent="Pegs"]
+position = Vector2(280, 180)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_1"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_1"]
+
+[node name="Peg_2" type="StaticBody2D" parent="Pegs"]
+position = Vector2(507, 180)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_2"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_2"]
+
+[node name="Peg_3" type="StaticBody2D" parent="Pegs"]
+position = Vector2(733, 180)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_3"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_3"]
+
+[node name="Peg_4" type="StaticBody2D" parent="Pegs"]
+position = Vector2(960, 180)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_4"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_4"]
+
+[node name="Peg_5" type="StaticBody2D" parent="Pegs"]
+position = Vector2(200, 280)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_5"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_5"]
+
+[node name="Peg_6" type="StaticBody2D" parent="Pegs"]
+position = Vector2(445, 280)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_6"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_6"]
+
+[node name="Peg_7" type="StaticBody2D" parent="Pegs"]
+position = Vector2(640, 280)
+script = ExtResource("3_p57ef")
+peg_type = "green"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_7"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_7"]
+
+[node name="Peg_8" type="StaticBody2D" parent="Pegs"]
+position = Vector2(835, 280)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_8"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_8"]
+
+[node name="Peg_9" type="StaticBody2D" parent="Pegs"]
+position = Vector2(1080, 280)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_9"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_9"]
+
+[node name="Peg_10" type="StaticBody2D" parent="Pegs"]
+position = Vector2(150, 380)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_10"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_10"]
+
+[node name="Peg_11" type="StaticBody2D" parent="Pegs"]
+position = Vector2(346, 380)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_11"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_11"]
+
+[node name="Peg_12" type="StaticBody2D" parent="Pegs"]
+position = Vector2(542, 380)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_12"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_12"]
+
+[node name="Peg_13" type="StaticBody2D" parent="Pegs"]
+position = Vector2(738, 380)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_13"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_13"]
+
+[node name="Peg_14" type="StaticBody2D" parent="Pegs"]
+position = Vector2(934, 380)
+script = ExtResource("3_p57ef")
+peg_type = "purple"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_14"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_14"]
+
+[node name="Peg_15" type="StaticBody2D" parent="Pegs"]
+position = Vector2(1130, 380)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_15"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_15"]
+
+[node name="Peg_16" type="StaticBody2D" parent="Pegs"]
+position = Vector2(200, 480)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_16"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_16"]
+
+[node name="Peg_17" type="StaticBody2D" parent="Pegs"]
+position = Vector2(445, 480)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_17"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_17"]
+
+[node name="Peg_18" type="StaticBody2D" parent="Pegs"]
+position = Vector2(640, 480)
+script = ExtResource("3_p57ef")
+peg_type = "green"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_18"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_18"]
+
+[node name="Peg_19" type="StaticBody2D" parent="Pegs"]
+position = Vector2(835, 480)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_19"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_19"]
+
+[node name="Peg_20" type="StaticBody2D" parent="Pegs"]
+position = Vector2(1080, 480)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_20"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_20"]
+
+[node name="Peg_21" type="StaticBody2D" parent="Pegs"]
+position = Vector2(280, 570)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_21"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_21"]
+
+[node name="Peg_22" type="StaticBody2D" parent="Pegs"]
+position = Vector2(507, 570)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_22"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_22"]
+
+[node name="Peg_23" type="StaticBody2D" parent="Pegs"]
+position = Vector2(733, 570)
+script = ExtResource("3_p57ef")
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_23"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_23"]
+
+[node name="Peg_24" type="StaticBody2D" parent="Pegs"]
+position = Vector2(960, 570)
+script = ExtResource("3_p57ef")
+peg_type = "orange"
+
+[node name="Sprite" type="ColorRect" parent="Pegs/Peg_24"]
+offset_left = -12.0
+offset_top = -12.0
+offset_right = 12.0
+offset_bottom = 12.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Pegs/Peg_24"]
+
+[node name="Walls" type="StaticBody2D" parent="."]
+
+[node name="LeftWall" type="CollisionShape2D" parent="Walls"]
+position = Vector2(-10, 360)
+shape = SubResource("wall_left")
+
+[node name="RightWall" type="CollisionShape2D" parent="Walls"]
+position = Vector2(1290, 360)
+shape = SubResource("wall_right")
+
+[node name="Bucket" type="AnimatableBody2D" parent="."]
+position = Vector2(640, 700)
+script = ExtResource("4_u5sy4")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bucket"]
+
+[node name="BucketSprite" type="ColorRect" parent="Bucket"]
+offset_left = -50.0
+offset_top = -10.0
+offset_right = 50.0
+offset_bottom = 10.0
+color = Color(0.3, 0.6, 0.3, 1)
+
+[node name="CatchArea" type="Area2D" parent="Bucket"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bucket/CatchArea"]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="ScoreLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 10.0
+offset_right = 300.0
+offset_bottom = 40.0
+theme_override_colors/font_color = Color(0.3, 0.85, 1.0, 1)
+theme_override_colors/font_shadow_color = Color(0.1, 0.3, 0.5, 0.4)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 22
+text = "Score: 0"
+
+[node name="BallsLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 38.0
+offset_right = 300.0
+offset_bottom = 62.0
+theme_override_colors/font_color = Color(0.5, 0.8, 1.0, 0.8)
+theme_override_colors/font_shadow_color = Color(0.1, 0.2, 0.4, 0.3)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 18
+text = "Balls: 10"
+
+[node name="OrangeLabel" type="Label" parent="UI"]
+offset_left = 20.0
+offset_top = 62.0
+offset_right = 300.0
+offset_bottom = 82.0
+theme_override_colors/font_color = Color(1.0, 0.4, 0.1, 0.8)
+theme_override_colors/font_shadow_color = Color(0.4, 0.1, 0.0, 0.3)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 14
+text = "Orange: 8 / 8"
+
+[node name="MessageLabel" type="Label" parent="UI"]
+visible = false
+offset_left = 240.0
+offset_top = 260.0
+offset_right = 1040.0
+offset_bottom = 400.0
+theme_override_colors/font_color = Color(0.3, 1.0, 0.5, 1)
+theme_override_colors/font_shadow_color = Color(0.0, 0.3, 0.1, 0.5)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 56
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "YOU WIN!"

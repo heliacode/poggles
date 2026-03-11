@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+level_name = "First Steps"
+level_number = 1
+peg_positions = Array[Vector2]([Vector2(280, 180), Vector2(507, 180), Vector2(733, 180), Vector2(960, 180), Vector2(200, 280), Vector2(445, 280), Vector2(640, 280), Vector2(835, 280), Vector2(1080, 280), Vector2(150, 380), Vector2(346, 380), Vector2(542, 380), Vector2(738, 380), Vector2(934, 380), Vector2(1130, 380), Vector2(200, 480), Vector2(445, 480), Vector2(640, 480), Vector2(835, 480), Vector2(1080, 480), Vector2(280, 570), Vector2(507, 570), Vector2(733, 570), Vector2(960, 570)])
+peg_types = Array[String](["orange", "blue", "blue", "blue", "orange", "blue", "green", "blue", "orange", "blue", "blue", "orange", "blue", "purple", "blue", "orange", "blue", "green", "orange", "blue", "blue", "orange", "blue", "orange"])
+starting_balls = 10

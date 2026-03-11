@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+level_name = "Spiral"
+level_number = 3
+peg_positions = Array[Vector2]([Vector2(640, 180), Vector2(740, 200), Vector2(820, 250), Vector2(860, 330), Vector2(840, 410), Vector2(780, 470), Vector2(700, 510), Vector2(600, 520), Vector2(520, 500), Vector2(460, 450), Vector2(430, 380), Vector2(440, 300), Vector2(490, 240), Vector2(560, 210), Vector2(640, 280), Vector2(710, 310), Vector2(730, 380), Vector2(700, 440), Vector2(640, 470), Vector2(570, 440), Vector2(540, 370), Vector2(570, 310), Vector2(640, 380), Vector2(350, 560), Vector2(500, 590), Vector2(640, 600), Vector2(780, 590), Vector2(930, 560)])
+peg_types = Array[String](["green", "blue", "orange", "blue", "orange", "blue", "orange", "blue", "orange", "blue", "orange", "blue", "blue", "blue", "orange", "blue", "purple", "blue", "orange", "blue", "orange", "blue", "green", "blue", "orange", "blue", "orange", "blue"])
+starting_balls = 10

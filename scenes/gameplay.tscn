@@ -1,0 +1,74 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="1_gm"]
+[ext_resource type="Script" path="res://scripts/cannon.gd" id="2_cannon"]
+[ext_resource type="Script" path="res://scripts/bucket.gd" id="3_bucket"]
+[ext_resource type="Script" path="res://scripts/background.gd" id="4_bg"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="5_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="6_pause"]
+
+[sub_resource type="RectangleShape2D" id="wall_left"]
+size = Vector2(20, 720)
+
+[sub_resource type="RectangleShape2D" id="wall_right"]
+size = Vector2(20, 720)
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_gm")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.01, 0.01, 0.03, 1)
+script = ExtResource("4_bg")
+
+[node name="Cannon" type="Node2D" parent="."]
+position = Vector2(640, 30)
+script = ExtResource("2_cannon")
+
+[node name="Barrel" type="Node2D" parent="Cannon"]
+
+[node name="BarrelSprite" type="ColorRect" parent="Cannon/Barrel"]
+offset_left = -8.0
+offset_top = -50.0
+offset_right = 8.0
+offset_bottom = 0.0
+color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="SpawnPoint" type="Marker2D" parent="Cannon/Barrel"]
+position = Vector2(0, -60)
+
+[node name="AimLine" type="Line2D" parent="Cannon"]
+
+[node name="Pegs" type="Node2D" parent="."]
+
+[node name="Walls" type="StaticBody2D" parent="."]
+
+[node name="LeftWall" type="CollisionShape2D" parent="Walls"]
+position = Vector2(-10, 360)
+shape = SubResource("wall_left")
+
+[node name="RightWall" type="CollisionShape2D" parent="Walls"]
+position = Vector2(1290, 360)
+shape = SubResource("wall_right")
+
+[node name="Bucket" type="AnimatableBody2D" parent="."]
+position = Vector2(640, 700)
+script = ExtResource("3_bucket")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bucket"]
+
+[node name="BucketSprite" type="ColorRect" parent="Bucket"]
+offset_left = -50.0
+offset_top = -10.0
+offset_right = 50.0
+offset_bottom = 10.0
+color = Color(0.3, 0.6, 0.3, 1)
+
+[node name="CatchArea" type="Area2D" parent="Bucket"]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bucket/CatchArea"]
+
+[node name="HUD" parent="." instance=ExtResource("5_hud")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("6_pause")]

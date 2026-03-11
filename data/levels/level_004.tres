@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+level_name = "Pyramid"
+level_number = 4
+peg_positions = Array[Vector2]([Vector2(640, 170), Vector2(560, 230), Vector2(720, 230), Vector2(480, 290), Vector2(600, 290), Vector2(680, 290), Vector2(800, 290), Vector2(400, 350), Vector2(520, 350), Vector2(640, 350), Vector2(760, 350), Vector2(880, 350), Vector2(320, 410), Vector2(440, 410), Vector2(560, 410), Vector2(640, 410), Vector2(720, 410), Vector2(840, 410), Vector2(960, 410), Vector2(240, 470), Vector2(360, 470), Vector2(480, 470), Vector2(600, 470), Vector2(680, 470), Vector2(800, 470), Vector2(920, 470), Vector2(1040, 470), Vector2(200, 560), Vector2(400, 560), Vector2(640, 560), Vector2(880, 560), Vector2(1080, 560)])
+peg_types = Array[String](["orange", "blue", "blue", "orange", "blue", "blue", "orange", "blue", "orange", "green", "orange", "blue", "blue", "orange", "blue", "purple", "blue", "orange", "blue", "orange", "blue", "blue", "orange", "orange", "blue", "blue", "orange", "blue", "blue", "green", "blue", "blue"])
+starting_balls = 10

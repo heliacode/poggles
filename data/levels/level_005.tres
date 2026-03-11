@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://resources/level_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+level_name = "Chaos"
+level_number = 5
+peg_positions = Array[Vector2]([Vector2(180, 190), Vector2(350, 160), Vector2(530, 200), Vector2(750, 170), Vector2(920, 210), Vector2(1100, 180), Vector2(120, 300), Vector2(280, 330), Vector2(460, 280), Vector2(640, 310), Vector2(820, 270), Vector2(1000, 320), Vector2(1160, 290), Vector2(200, 420), Vector2(380, 390), Vector2(550, 430), Vector2(730, 400), Vector2(900, 440), Vector2(1060, 410), Vector2(140, 530), Vector2(320, 510), Vector2(490, 550), Vector2(640, 520), Vector2(790, 560), Vector2(960, 530), Vector2(1120, 510), Vector2(250, 620), Vector2(450, 640), Vector2(640, 630), Vector2(830, 640), Vector2(1030, 620)])
+peg_types = Array[String](["blue", "orange", "blue", "orange", "blue", "orange", "orange", "blue", "orange", "green", "orange", "blue", "orange", "blue", "orange", "blue", "purple", "blue", "orange", "orange", "blue", "orange", "green", "orange", "blue", "orange", "blue", "blue", "orange", "blue", "blue"])
+starting_balls = 10
