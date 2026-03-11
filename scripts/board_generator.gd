@@ -35,6 +35,9 @@ static func generate(params: Dictionary) -> LevelData:
 	var is_boss: bool = params.get("is_boss", false)
 	var specials := _assign_specials(types, act, is_boss, rng)
 
+	# Assign power-ups to green pegs
+	var power_ups := _assign_power_ups(types, act, rng)
+
 	# Build LevelData
 	var data := LevelData.new()
 	data.level_name = _board_name(rng)
@@ -42,6 +45,7 @@ static func generate(params: Dictionary) -> LevelData:
 	data.peg_positions = positions
 	data.peg_types = types
 	data.peg_specials = specials
+	data.peg_power_ups = power_ups
 	data.starting_balls = 0  # Not used in roguelite mode
 	return data
 
@@ -306,6 +310,25 @@ static func _assign_specials(types: Array[String], act: int, is_boss: bool, rng:
 			pool_idx += 1
 
 	return specials
+
+static func _assign_power_ups(types: Array[String], act: int, rng: RandomNumberGenerator) -> Array[String]:
+	var count := types.size()
+	var power_ups: Array[String] = []
+	power_ups.resize(count)
+	for i in range(count):
+		power_ups[i] = ""
+
+	var available: Array[String] = []
+	match act:
+		1: available = ["prism_split", "phantom_pass", "overdrive"]
+		2: available = ["prism_split", "overload", "overdrive", "phantom_pass"]
+		3: available = ["overload", "overdrive", "phantom_pass", "prism_split"]
+
+	for i in range(count):
+		if types[i] == "green" and not available.is_empty():
+			power_ups[i] = available[rng.randi() % available.size()]
+
+	return power_ups
 
 static func _board_name(rng: RandomNumberGenerator) -> String:
 	var adjectives := ["Neon", "Dark", "Glowing", "Twisted", "Deep", "Shifting", "Silent", "Bright", "Hollow", "Fractured"]

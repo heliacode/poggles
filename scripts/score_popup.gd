@@ -12,9 +12,10 @@ func setup(text: String, col: Color, pos: Vector2) -> void:
 	_color = col
 	global_position = pos
 	_drift_x = randf_range(-20.0, 20.0)
+	_scale_val = 1.5
 	var tween := create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(self, "_scale_val", 1.0, 0.12).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(self, "_scale_val", 1.0, 0.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	tween.tween_property(self, "position:y", position.y - 50, 0.9).set_ease(Tween.EASE_OUT)
 	tween.set_parallel(false)
 	tween.tween_property(self, "_alpha", 0.0, 0.25)

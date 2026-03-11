@@ -6,6 +6,7 @@ var _event: EventData
 var _pulse := 0.0
 var _state: int = 0  # 0=choosing, 1=showing outcome, 2=transitioning
 var _choice_rects: Array = []  # Array of Rect2
+var _choice_scales: Array = []  # parallel array of floats (1.0 = normal)
 var _hover_choice := -1
 var _outcome_text := ""
 var _outcome_timer := 0.0
@@ -39,6 +40,10 @@ func _process(delta: float) -> void:
 	match _state:
 		0:
 			_update_hover()
+			# Lerp choice scales toward target
+			for i in range(_choice_scales.size()):
+				var target := 1.04 if i == _hover_choice else 1.0
+				_choice_scales[i] = lerpf(_choice_scales[i], target, clampf(delta * 12.0, 0.0, 1.0))
 		1:
 			_outcome_timer += delta
 			if _outcome_timer >= OUTCOME_DISPLAY_TIME:
@@ -48,6 +53,7 @@ func _process(delta: float) -> void:
 
 func _build_choice_rects() -> void:
 	_choice_rects.clear()
+	_choice_scales.clear()
 	if not _event:
 		return
 	var vp := GameConfig.VIEWPORT_SIZE
@@ -62,6 +68,7 @@ func _build_choice_rects() -> void:
 	for i in range(choice_count):
 		var y := start_y + float(i) * (btn_height + spacing)
 		_choice_rects.append(Rect2(start_x, y, btn_width, btn_height))
+		_choice_scales.append(1.0)
 
 func _update_hover() -> void:
 	var mouse := get_global_mouse_position()
@@ -198,11 +205,16 @@ func _draw() -> void:
 	# Choices
 	if _state == 0:
 		for i in range(_choice_rects.size()):
-			var rect: Rect2 = _choice_rects[i]
+			var base_rect: Rect2 = _choice_rects[i]
 			var choice: Dictionary = _event.choices[i]
 			var is_hovered := i == _hover_choice
 			var c := CHOICE_HOVER_COLOR if is_hovered else CHOICE_COLOR
 			var alpha := 0.9 if is_hovered else 0.6
+
+			# Scale rect from center
+			var sc: float = _choice_scales[i] if i < _choice_scales.size() else 1.0
+			var grow_amount := (sc - 1.0) * base_rect.size.x * 0.5
+			var rect := base_rect.grow(grow_amount)
 
 			# Choice border
 			_draw_neon_border(rect, c, alpha)

@@ -95,12 +95,26 @@ func _draw() -> void:
 	var rule_half := 180.0
 	draw_line(Vector2(center_x - rule_half, rule_y), Vector2(center_x + rule_half, rule_y), Color(act_color.r, act_color.g, act_color.b, 0.3 * _alpha), 1.0)
 
-	# Flavor text — draw each line separately
+	# Flavor text — draw each line with staggered entrance during hold phase
 	var lines := flavor.split("\n")
 	var line_y := 330.0
-	for line in lines:
+	var hold_elapsed := 0.0
+	if _phase >= 1:
+		hold_elapsed = _phase_time if _phase == 1 else HOLD_DURATION
+	for line_idx in range(lines.size()):
+		var line: String = lines[line_idx]
 		var line_size := font.get_string_size(line, HORIZONTAL_ALIGNMENT_CENTER, -1, 14)
-		draw_string(font, Vector2(center_x - line_size.x / 2.0, line_y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.6, 0.7, 0.8, 0.7 * _alpha))
+		# Stagger: each line slides in 0.15s after the previous
+		var line_delay := float(line_idx) * 0.15
+		var line_t := clampf((hold_elapsed - line_delay) / 0.25, 0.0, 1.0)
+		# During fade_in phase, show nothing; during hold, stagger in
+		var line_alpha := _alpha * 0.7 * line_t if _phase >= 1 else _alpha * 0.7 * 0.0
+		if _phase == 0:
+			# Not yet in hold, don't show flavor
+			line_y += 24.0
+			continue
+		var x_offset := 20.0 * (1.0 - line_t)
+		draw_string(font, Vector2(center_x - line_size.x / 2.0 + x_offset, line_y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.6, 0.7, 0.8, line_alpha))
 		line_y += 24.0
 
 func _draw_wireframe_decoration(act_color: Color) -> void:

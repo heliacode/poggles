@@ -20,6 +20,8 @@ static func spawn_pegs(level_data: LevelData, container: Node2D, peg_script: Scr
 			peg.peg_type = level_data.peg_types[i]
 		if i < level_data.peg_specials.size() and level_data.peg_specials[i] != "":
 			peg.special_type = level_data.peg_specials[i]
+		if i < level_data.peg_power_ups.size() and level_data.peg_power_ups[i] != "":
+			peg.power_up_type = level_data.peg_power_ups[i]
 
 		# Add required child nodes
 		var collision := CollisionShape2D.new()

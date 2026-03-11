@@ -6,6 +6,7 @@ extends Resource
 @export var peg_positions: Array[Vector2] = []
 @export var peg_types: Array[String] = []
 @export var peg_specials: Array[String] = []
+@export var peg_power_ups: Array[String] = []
 @export var starting_balls: int = 10
 
 func get_peg_count() -> int:

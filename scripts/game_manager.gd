@@ -39,6 +39,9 @@ func _ready() -> void:
 	_load_level()
 	_connect_signals()
 	_start_intro()
+	FeverManager.fever_triggered.connect(_on_fever_triggered)
+	FeverManager.on_new_board()
+	PowerUpManager.reset()
 	if OS.has_feature("playtest") or OS.get_cmdline_args().has("--bot"):
 		_enable_bot()
 
@@ -158,7 +161,22 @@ func _on_ball_fired(pos: Vector2, direction: Vector2, power: float) -> void:
 	current_ball.ball_lost.connect(_on_ball_lost)
 
 func _on_ball_lost() -> void:
+	# If the ball that was lost is a clone, just remove it
+	if current_ball and current_ball.is_clone:
+		current_ball.queue_free()
+		return
+
 	state = State.BALL_LOST
+	var hit_any := _combo_count > 0
+	var was_fever := FeverManager.is_fever_active
+	FeverManager.on_ball_lost(hit_any)
+	if was_fever:
+		FeverManager.end_fever()
+		# Fever gives a free ball refund
+		balls_remaining += 1
+		if _is_roguelite:
+			RunState.add_balls(1)
+		_spawn_score_popup("FEVER BALL!", Color(1.0, 0.85, 0.0), Vector2(640, 360))
 	_combo_count = 0
 	_hit_streak_positions.clear()
 	if current_ball:
@@ -242,12 +260,18 @@ func _on_peg_hit(peg: Node) -> void:
 
 	_combo_count += 1
 
+	# Fever system
+	FeverManager.on_peg_hit(peg_type)
+
 	# Apply score multiplier from ball
 	var multiplier := 1.0
 	if current_ball and current_ball.score_multiplier > 1.0:
 		multiplier = current_ball.score_multiplier
 
 	var points := int(float(GameConfig.PEG_SCORES.get(peg_type, 0)) * multiplier)
+	# During fever: 3x points
+	if FeverManager.is_fever_active:
+		points *= 3
 	_add_score(points)
 	_shake_amount = clampf(float(points) / 50.0 * (1.0 + _combo_count * 0.3), 1.0, 8.0)
 	var color: Color = GameConfig.SCORE_POPUP_COLORS.get(peg_type, Color.WHITE)
@@ -288,6 +312,22 @@ func _on_peg_hit(peg: Node) -> void:
 		"chain": _effect_chain(peg)
 		"multiplier": _effect_multiplier()
 		"gravity": _effect_gravity(peg)
+
+	# Overload power-up: mega bomb on next peg hit
+	if current_ball and current_ball.overload_pending:
+		current_ball.overload_pending = false
+		var center: Vector2 = peg.global_position
+		for other in pegs_container.get_children():
+			if other == peg or not other.has_method("hit") or other.is_hit():
+				continue
+			if center.distance_to(other.global_position) <= GameConfig.BOMB_RADIUS * 3.0:
+				other.hit()
+
+	# Power-up activation from green pegs
+	if "power_up_type" in peg:
+		var pu: String = peg.power_up_type
+		if pu != "" and current_ball:
+			PowerUpManager.activate(pu, current_ball)
 
 func _effect_bomb(peg: Node2D) -> void:
 	var center := peg.global_position
@@ -338,6 +378,11 @@ func _effect_gravity(peg: Node2D) -> void:
 		"position": peg.global_position,
 		"time_left": GameConfig.GRAVITY_WELL_DURATION,
 	})
+
+func _on_fever_triggered() -> void:
+	_flash_alpha = 0.3
+	_flash_color = Color(1.0, 0.85, 0.0)  # Gold flash
+	_shake_amount = 5.0
 
 func _add_score(points: int) -> void:
 	score += points

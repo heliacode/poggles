@@ -5,11 +5,15 @@ extends Button
 
 var _hover := false
 var _pulse := 0.0
+var _scale_tween: Tween
 
 func _ready() -> void:
 	flat = true
-	mouse_entered.connect(func(): _hover = true)
-	mouse_exited.connect(func(): _hover = false)
+	pivot_offset = size / 2.0
+	mouse_entered.connect(_on_hover_enter)
+	mouse_exited.connect(_on_hover_exit)
+	button_down.connect(_on_press)
+	button_up.connect(_on_release)
 	# Make text transparent so we draw our own
 	add_theme_color_override("font_color", neon_color)
 	add_theme_color_override("font_hover_color", Color(1, 1, 1))
@@ -18,6 +22,29 @@ func _ready() -> void:
 	add_theme_stylebox_override("hover", StyleBoxEmpty.new())
 	add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
 	add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+func _tween_scale(target: Vector2, duration: float) -> Tween:
+	if _scale_tween and _scale_tween.is_valid():
+		_scale_tween.kill()
+	_scale_tween = create_tween()
+	_scale_tween.tween_property(self, "scale", target, duration).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	return _scale_tween
+
+func _on_hover_enter() -> void:
+	_hover = true
+	_tween_scale(Vector2(1.05, 1.05), 0.1)
+
+func _on_hover_exit() -> void:
+	_hover = false
+	_tween_scale(Vector2(1.0, 1.0), 0.1)
+
+func _on_press() -> void:
+	_tween_scale(Vector2(0.95, 0.95), 0.05)
+
+func _on_release() -> void:
+	var tw := _tween_scale(Vector2(1.05, 1.05), 0.08)
+	await tw.finished
+	_tween_scale(Vector2(1.0, 1.0), 0.1)
 
 func _process(delta: float) -> void:
 	_pulse += delta * 3.0

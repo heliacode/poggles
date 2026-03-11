@@ -3,6 +3,7 @@ extends Node2D
 var _pulse := 0.0
 var _node_rects: Array = []  # Array of {rect: Rect2, row: int, col: int}
 var _hover_index := -1
+var _entrance_time := 0.0
 
 @onready var background := $Background
 
@@ -11,6 +12,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_pulse += delta * 2.5
+	_entrance_time += delta
 	_update_hover()
 	queue_redraw()
 
@@ -136,6 +138,13 @@ func _draw() -> void:
 		var is_past := row < RunState.route_position
 		var is_hovered := i == _hover_index
 
+		# Entrance animation: stagger per row
+		var row_entrance := clampf((_entrance_time - float(row) * 0.08) / 0.25, 0.0, 1.0)
+		if row_entrance <= 0.0:
+			continue
+		var slide_y := (1.0 - row_entrance) * 15.0
+		var draw_rect_adj := Rect2(rect.position + Vector2(0, slide_y), rect.size)
+
 		# Get node data
 		var row_data: Array = map[row] if row < map.size() else []
 		var node_data: Dictionary = row_data[col] if col < row_data.size() else {}
@@ -149,29 +158,33 @@ func _draw() -> void:
 			alpha = 0.8 if is_hovered else 0.6
 		elif is_past:
 			alpha = 0.15
+		alpha *= row_entrance
 
 		# Background glow
 		if is_current_row:
-			draw_rect(rect.grow(3), Color(c.r, c.g, c.b, 0.04 * pulse), true)
+			var breathe := sin(_pulse) * 1.5
+			draw_rect(draw_rect_adj.grow(3 + breathe), Color(c.r, c.g, c.b, 0.04 * pulse), true)
 
-		# Border
+		# Border (current row breathes)
+		var border_grow := sin(_pulse) * 1.5 if is_current_row else 0.0
+		var border_rect := draw_rect_adj.grow(border_grow)
 		var border_points := PackedVector2Array([
-			rect.position, Vector2(rect.end.x, rect.position.y),
-			rect.end, Vector2(rect.position.x, rect.end.y), rect.position,
+			border_rect.position, Vector2(border_rect.end.x, border_rect.position.y),
+			border_rect.end, Vector2(border_rect.position.x, border_rect.end.y), border_rect.position,
 		])
 		draw_polyline(border_points, Color(c.r, c.g, c.b, alpha * pulse), 1.5 if is_current_row else 1.0)
 
 		# Label
 		var label_size := font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 16)
 		var label_pos := Vector2(
-			rect.position.x + (rect.size.x - label_size.x) / 2.0,
-			rect.position.y + rect.size.y / 2.0 + 5.0
+			draw_rect_adj.position.x + (draw_rect_adj.size.x - label_size.x) / 2.0,
+			draw_rect_adj.position.y + draw_rect_adj.size.y / 2.0 + 5.0
 		)
 		draw_string(font, label_pos, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(c.r, c.g, c.b, alpha * pulse))
 
 		# Hover highlight
 		if is_hovered:
-			draw_rect(rect.grow(1), Color(c.r, c.g, c.b, 0.08), true)
+			draw_rect(draw_rect_adj.grow(1), Color(c.r, c.g, c.b, 0.08), true)
 
 func _node_color(type: int) -> Color:
 	match type:

@@ -22,6 +22,8 @@ SaveData="*res://autoloads/save_data.gd"
 RunState="*res://autoloads/run_state.gd"
 AudioManager="*res://autoloads/audio_manager.gd"
 SceneManager="*res://autoloads/scene_manager.gd"
+FeverManager="*res://autoloads/fever_manager.gd"
+PowerUpManager="*res://autoloads/power_up_manager.gd"
 McpBridgeGame="*res://mcp_bridge_game.gd"
 
 [display]

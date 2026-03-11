@@ -4,6 +4,7 @@ signal peg_hit(peg: StaticBody2D)
 
 @export var peg_type: String = "blue"
 @export var special_type: String = ""
+@export var power_up_type: String = ""
 
 var _hit := false
 var _color: Color
@@ -75,6 +76,12 @@ func _draw() -> void:
 	# Special type overlays
 	if not _hit:
 		_draw_special(ring_alpha, pulse)
+
+	# Power-up label on green pegs
+	if power_up_type != "" and not _hit:
+		var label: String = power_up_type.substr(0, 1).to_upper()
+		var font: Font = ThemeDB.fallback_font
+		draw_string(font, Vector2(-4, -GameConfig.PEG_RADIUS - 8), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 1.0, 0.3, 0.7))
 
 func _draw_special(ring_alpha: float, pulse: float) -> void:
 	match special_type:

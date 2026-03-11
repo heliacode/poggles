@@ -8,7 +8,7 @@ var last_orange_cleared := 0
 var last_balls_used := 0
 
 var _fade_layer: CanvasLayer
-var _fade_rect: ColorRect
+var _transition_overlay: Control
 var _is_transitioning := false
 
 func _ready() -> void:
@@ -16,30 +16,54 @@ func _ready() -> void:
 	_fade_layer.layer = 100
 	add_child(_fade_layer)
 
-	_fade_rect = ColorRect.new()
-	_fade_rect.color = Color(0, 0, 0, 0)
-	_fade_rect.anchors_preset = Control.PRESET_FULL_RECT
-	_fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fade_layer.add_child(_fade_rect)
+	_transition_overlay = _TransitionOverlay.new()
+	_transition_overlay.anchors_preset = Control.PRESET_FULL_RECT
+	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade_layer.add_child(_transition_overlay)
 
 func change_scene(scene_path: String) -> void:
 	if _is_transitioning:
 		return
 	_is_transitioning = true
-	_fade_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var tween := create_tween()
-	tween.tween_property(_fade_rect, "color:a", 1.0, GameConfig.FADE_DURATION)
+	tween.tween_property(_transition_overlay, "progress", 1.0, 0.2)
 	await tween.finished
 
 	get_tree().change_scene_to_file(scene_path)
 
 	var tween2 := create_tween()
-	tween2.tween_property(_fade_rect, "color:a", 0.0, GameConfig.FADE_DURATION)
+	tween2.tween_property(_transition_overlay, "progress", 0.0, 0.2)
 	await tween2.finished
 
-	_fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_is_transitioning = false
+
+
+class _TransitionOverlay extends Control:
+	var progress := 0.0  # 0=invisible, 1=fully covered
+	var _line_count := 24  # horizontal bands
+
+	func _draw() -> void:
+		if progress <= 0.0:
+			return
+		var h := size.y / float(_line_count)
+		for i in range(_line_count):
+			# Each line fills based on progress with stagger
+			var line_progress := clampf(progress * 1.5 - float(i) / float(_line_count) * 0.5, 0.0, 1.0)
+			if line_progress <= 0.0:
+				continue
+			var y := float(i) * h
+			# Dark fill
+			draw_rect(Rect2(0, y, size.x, h), Color(0.01, 0.01, 0.03, line_progress))
+			# Leading edge bright line
+			if line_progress < 1.0 and line_progress > 0.1:
+				var edge_alpha := (1.0 - line_progress) * 0.8
+				draw_line(Vector2(0, y + h * line_progress), Vector2(size.x, y + h * line_progress), Color(0.3, 0.8, 1.0, edge_alpha), 2.0)
+
+	func _process(_delta: float) -> void:
+		queue_redraw()
 
 func go_to_main_menu() -> void:
 	change_scene(GameConfig.MAIN_MENU_SCENE_PATH)

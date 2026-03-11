@@ -8,6 +8,9 @@ var _impact_flash := 0.0
 var _impact_normal := Vector2.ZERO
 var _mote_timer := 0
 var score_multiplier := 1.0
+var is_clone := false
+var phantom_active := false
+var overload_pending := false
 
 func _ready() -> void:
 	contact_monitor = true
@@ -53,6 +56,22 @@ func _draw() -> void:
 	if score_multiplier > 1.0:
 		var gold := Color(1.0, 0.85, 0.0)
 		draw_circle(Vector2.ZERO, GameConfig.BALL_RADIUS + 4, Color(gold.r, gold.g, gold.b, 0.06))
+
+	# Fever mode glow
+	if FeverManager.is_fever_active:
+		var fever_gold := Color(1.0, 0.85, 0.0)
+		# Extra outer glow rings in gold
+		for fi in range(3):
+			var fr := GameConfig.BALL_RADIUS + 10.0 + float(fi) * 4.0
+			draw_circle(Vector2.ZERO, fr, Color(fever_gold.r, fever_gold.g, fever_gold.b, 0.12 - float(fi) * 0.03))
+		# Override trail color to gold in the trail section above is handled by c, so tint the core
+		draw_circle(Vector2.ZERO, GameConfig.BALL_RADIUS + 2, Color(fever_gold.r, fever_gold.g, fever_gold.b, 0.15))
+
+	# Phantom pass visual
+	if phantom_active:
+		var phantom_col := Color(0.5, 0.8, 1.0, 0.3)
+		draw_arc(Vector2.ZERO, GameConfig.BALL_RADIUS + 6, 0, TAU, 32, phantom_col, 1.5, true)
+		draw_circle(Vector2.ZERO, GameConfig.BALL_RADIUS + 3, Color(0.5, 0.8, 1.0, 0.08))
 
 	# Speed ring at high velocity
 	if _speed_ratio > 0.8:
@@ -102,6 +121,15 @@ func _physics_process(delta: float) -> void:
 				if dist < 80.0:
 					var intensity := 1.0 - dist / 80.0
 					peg.set_anticipation(intensity)
+
+	# Phantom pass: detect nearby pegs via overlap
+	if phantom_active:
+		var pegs_node: Node = get_parent().get_node_or_null("Pegs")
+		if pegs_node:
+			for peg in pegs_node.get_children():
+				if peg.has_method("hit") and peg.has_method("is_hit") and not peg.is_hit():
+					if global_position.distance_to(peg.global_position) < GameConfig.PEG_RADIUS + GameConfig.BALL_RADIUS + 2:
+						peg.hit()
 
 	_trail.append(global_position)
 	if _trail.size() > GameConfig.BALL_TRAIL_LENGTH:

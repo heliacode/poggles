@@ -7,6 +7,8 @@ var _orange_cleared := 0
 var _balls_used := 0
 var _stars := 0
 var _won := false
+var _reveal_time := 0.0
+var _display_score := 0
 
 @onready var background := $Background
 
@@ -18,6 +20,11 @@ func _ready() -> void:
 	_won = _orange_cleared >= _orange_total
 	_calculate_stars()
 	_save_progress()
+	# Hide buttons initially, fade in after stars
+	var ui := get_node_or_null("UI")
+	if ui:
+		for child in ui.get_children():
+			_set_modulate_recursive(child, 0.0)
 
 func _calculate_stars() -> void:
 	if not _won:
@@ -43,8 +50,30 @@ func _save_progress() -> void:
 	SaveData.set_level_score(SceneManager.current_level, _score)
 	SaveData.set_level_stars(SceneManager.current_level, _stars)
 
+func _set_modulate_recursive(node: Node, alpha: float) -> void:
+	if node is CanvasItem:
+		node.modulate.a = alpha
+	for child in node.get_children():
+		_set_modulate_recursive(child, alpha)
+
 func _process(delta: float) -> void:
 	_pulse += delta * 2.0
+	_reveal_time += delta
+
+	# Count up score over 1s
+	if _reveal_time < 1.0:
+		_display_score = int(float(_score) * clampf(_reveal_time / 1.0, 0.0, 1.0))
+	else:
+		_display_score = _score
+
+	# Fade in buttons after stars are done (stars finish at ~1.0 + 0.3*3 = 1.9s)
+	var button_fade_start := 2.2
+	var ui := get_node_or_null("UI")
+	if ui and _reveal_time > button_fade_start:
+		var fade := clampf((_reveal_time - button_fade_start) / 0.3, 0.0, 1.0)
+		for child in ui.get_children():
+			_set_modulate_recursive(child, fade)
+
 	queue_redraw()
 
 func _draw() -> void:
@@ -59,8 +88,8 @@ func _draw() -> void:
 	var title_size := font.get_string_size(title, HORIZONTAL_ALIGNMENT_CENTER, -1, 42)
 	draw_string(font, Vector2(center_x - title_size.x / 2.0, 120), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(title_color.r, title_color.g, title_color.b, pulse))
 
-	# Score
-	var score_text := "Score: %d" % _score
+	# Score (counts up)
+	var score_text := "Score: %d" % _display_score
 	var score_size := font.get_string_size(score_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 28)
 	draw_string(font, Vector2(center_x - score_size.x / 2.0, 200), score_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(0.3, 0.85, 1.0, 0.9))
 
@@ -74,13 +103,17 @@ func _draw() -> void:
 	var balls_size := font.get_string_size(balls_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 20)
 	draw_string(font, Vector2(center_x - balls_size.x / 2.0, 275), balls_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0.5, 0.8, 1.0, 0.7))
 
-	# Stars
+	# Stars (staggered reveal after score finishes counting)
 	if _won:
 		var star_y := 330.0
 		for i in range(3):
+			var star_appear_time := 1.0 + float(i) * 0.3
+			if _reveal_time < star_appear_time:
+				continue
+			var star_fade := clampf((_reveal_time - star_appear_time) / 0.2, 0.0, 1.0)
 			var star_x := center_x + (float(i) - 1.0) * 50.0
 			var filled := i < _stars
-			var star_col := Color(1.0, 0.85, 0.3, pulse) if filled else Color(0.3, 0.3, 0.4, 0.4)
+			var star_col := Color(1.0, 0.85, 0.3, pulse * star_fade) if filled else Color(0.3, 0.3, 0.4, 0.4 * star_fade)
 			var star_label := "*" if filled else "-"
 			var s_size := font.get_string_size(star_label, HORIZONTAL_ALIGNMENT_CENTER, -1, 40)
 			draw_string(font, Vector2(star_x - s_size.x / 2.0, star_y), star_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, star_col)
