@@ -63,6 +63,9 @@ func start_new_run() -> void:
 	next_board_mods = {}
 	permanent_coin_bonus = 0
 	permanent_orange_score_bonus = 0
+	# Character passive: extra/fewer starting balls
+	balls_remaining += CharacterManager.get_extra_starting_balls()
+	balls_remaining = maxi(3, balls_remaining)  # Floor at 3
 	RelicManager.reset()
 	_generate_route_map()
 	run_started.emit()
@@ -201,36 +204,115 @@ func _generate_route_map() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed + current_act * 100 + current_board_index
 
-	# Simple linear map for now: 3-4 choice rows then boss
-	var rows_before_boss := 3
-	for row in range(rows_before_boss):
+	# Generate a big branching map: 10-12 rows before boss
+	var total_rows := 10 + (current_act - 1) * 2  # Act 1: 10, Act 2: 12, Act 3: 14
+
+	for row in range(total_rows):
 		var nodes := []
+		var count: int
+
 		if row == 0:
-			# First row: always 2-3 board choices
-			var count := rng.randi_range(2, 3)
+			# Start: 2-3 board options
+			count = rng.randi_range(2, 3)
+		elif row == total_rows / 2:
+			# Midpoint: elite encounter (1 node, forced)
+			nodes.append({"type": NodeType.ELITE, "label": _node_label(NodeType.ELITE), "connections": []})
+			route_map.append(nodes)
+			continue
+		elif row == total_rows - 1:
+			# Pre-boss: rest stop (1-2 nodes)
+			count = rng.randi_range(1, 2)
 			for i in range(count):
-				var type := _pick_node_type(rng, row)
-				nodes.append({"type": type, "label": _node_label(type)})
+				nodes.append({"type": NodeType.REST, "label": _node_label(NodeType.REST), "connections": []})
+			route_map.append(nodes)
+			continue
 		else:
-			var count := rng.randi_range(2, 3)
-			for i in range(count):
-				var type := _pick_node_type(rng, row)
-				nodes.append({"type": type, "label": _node_label(type)})
+			# Vary width: 2-4 nodes, occasionally 1
+			var width_roll := rng.randf()
+			if width_roll < 0.05:
+				count = 1
+			elif width_roll < 0.35:
+				count = 2
+			elif width_roll < 0.75:
+				count = 3
+			else:
+				count = 4
+
+		for i in range(count):
+			var type := _pick_node_type(rng, row, total_rows)
+			nodes.append({"type": type, "label": _node_label(type), "connections": []})
 		route_map.append(nodes)
 
 	# Boss row
-	route_map.append([{"type": NodeType.BOSS, "label": "BOSS"}])
+	route_map.append([{"type": NodeType.BOSS, "label": "BOSS", "connections": []}])
 
-func _pick_node_type(rng: RandomNumberGenerator, row: int) -> NodeType:
+	# Generate branching connections (each node connects to 1-2 nodes in next row)
+	for row_idx in range(route_map.size() - 1):
+		var current_row: Array = route_map[row_idx]
+		var next_row: Array = route_map[row_idx + 1]
+		if next_row.is_empty():
+			continue
+
+		# Ensure every node in current row has at least 1 connection
+		for col_idx in range(current_row.size()):
+			var node: Dictionary = current_row[col_idx]
+			var conns: Array = []
+
+			# Connect to the closest node in next row, plus maybe one neighbor
+			var closest := clampi(col_idx * next_row.size() / maxi(current_row.size(), 1), 0, next_row.size() - 1)
+			conns.append(closest)
+
+			# Sometimes branch to an adjacent node
+			if rng.randf() < 0.5 and next_row.size() > 1:
+				var alt := closest + (1 if rng.randf() > 0.5 else -1)
+				alt = clampi(alt, 0, next_row.size() - 1)
+				if alt != closest and alt not in conns:
+					conns.append(alt)
+
+			node["connections"] = conns
+
+		# Ensure every node in next row is reachable by at least one parent
+		for next_col in range(next_row.size()):
+			var reachable := false
+			for col_idx in range(current_row.size()):
+				var node: Dictionary = current_row[col_idx]
+				if next_col in node.get("connections", []):
+					reachable = true
+					break
+			if not reachable:
+				# Connect from nearest parent
+				var nearest := clampi(next_col * current_row.size() / maxi(next_row.size(), 1), 0, current_row.size() - 1)
+				var parent_node: Dictionary = current_row[nearest]
+				var parent_conns: Array = parent_node.get("connections", [])
+				parent_conns.append(next_col)
+				parent_node["connections"] = parent_conns
+
+func _pick_node_type(rng: RandomNumberGenerator, row: int, total_rows: int) -> NodeType:
+	var progress := float(row) / float(total_rows)
 	var roll := rng.randf()
+
 	if row == 0:
 		# First row is mostly boards
 		if roll < 0.7: return NodeType.BOARD
 		if roll < 0.85: return NodeType.EVENT
 		return NodeType.SHOP
+	elif progress < 0.3:
+		# Early: boards and events, few shops
+		if roll < 0.50: return NodeType.BOARD
+		if roll < 0.70: return NodeType.EVENT
+		if roll < 0.85: return NodeType.SHOP
+		return NodeType.REST
+	elif progress < 0.7:
+		# Mid: more variety, elites appear
+		if roll < 0.30: return NodeType.BOARD
+		if roll < 0.50: return NodeType.ELITE
+		if roll < 0.65: return NodeType.SHOP
+		if roll < 0.80: return NodeType.EVENT
+		return NodeType.REST
 	else:
-		if roll < 0.40: return NodeType.BOARD
-		if roll < 0.55: return NodeType.ELITE
+		# Late: harder, more elites and shops for last prep
+		if roll < 0.25: return NodeType.BOARD
+		if roll < 0.50: return NodeType.ELITE
 		if roll < 0.70: return NodeType.SHOP
 		if roll < 0.85: return NodeType.REST
 		return NodeType.EVENT

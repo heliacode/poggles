@@ -416,6 +416,11 @@ func _on_ball_lost() -> void:
 	_combo_count = 0
 	_hit_streak_positions.clear()
 	_near_miss_pegs.clear()
+	# Avatar mood: worried when low on balls, otherwise idle
+	if balls_remaining <= 2:
+		cannon.set_avatar_mood(2)  # WORRIED
+	else:
+		cannon.set_avatar_mood(0)  # IDLE
 	if current_ball:
 		current_ball.queue_free()
 		current_ball = null
@@ -553,6 +558,10 @@ func _on_peg_hit(peg: Node) -> void:
 		multiplier = current_ball.score_multiplier
 
 	var points := int(float(GameConfig.PEG_SCORES.get(peg_type, 0)) * multiplier)
+	# Character passives: combo and global score multipliers
+	if _is_roguelite:
+		points = int(float(points) * CharacterManager.get_combo_score_multiplier(_combo_count))
+		points = int(float(points) * CharacterManager.get_score_multiplier())
 	# Board mod: score multiplier bonus
 	if _board_mods.has("score_multiplier"):
 		points = int(float(points) * (1.0 + float(_board_mods["score_multiplier"])))
@@ -593,6 +602,12 @@ func _on_peg_hit(peg: Node) -> void:
 	if _combo_count >= 5:
 		_flash_color = Color(0.2, 0.8, 1.0)
 		_flash_alpha = maxf(_flash_alpha, 0.1)
+
+	# Character avatar mood reactions
+	if _combo_count >= 5:
+		cannon.set_avatar_mood(3)  # CELEBRATING
+	elif _combo_count >= 3:
+		cannon.set_avatar_mood(1)  # EXCITED
 
 	if _is_roguelite:
 		RunState.on_peg_hit_coin(peg_type)
@@ -636,12 +651,15 @@ func _on_peg_hit(peg: Node) -> void:
 	if "power_up_type" in peg:
 		var pu: String = peg.power_up_type
 		if pu != "" and current_ball:
-			PowerUpManager.activate(pu, current_ball)
-			match pu:
-				"prism_split": AudioManager.play_sfx("powerup_prism")
-				"overdrive": AudioManager.play_sfx("powerup_overdrive")
-				"phantom_pass": AudioManager.play_sfx("powerup_phantom")
-				"overload": AudioManager.play_sfx("powerup_overload")
+			if pu == "character_power" and _is_roguelite:
+				CharacterManager.activate_power(current_ball, peg)
+			else:
+				PowerUpManager.activate(pu, current_ball)
+				match pu:
+					"prism_split": AudioManager.play_sfx("powerup_prism")
+					"overdrive": AudioManager.play_sfx("powerup_overdrive")
+					"phantom_pass": AudioManager.play_sfx("powerup_phantom")
+					"overload": AudioManager.play_sfx("powerup_overload")
 
 func _effect_bomb(peg: Node2D) -> void:
 	var center := peg.global_position

@@ -107,3 +107,6 @@ func go_to_shop() -> void:
 
 func go_to_unlock_screen() -> void:
 	change_scene(GameConfig.UNLOCK_SCENE_PATH)
+
+func go_to_character_select() -> void:
+	change_scene(GameConfig.CHARACTER_SELECT_SCENE_PATH)

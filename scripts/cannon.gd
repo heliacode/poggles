@@ -11,11 +11,17 @@ var _recoil := 0.0
 var _pulse := 0.0
 var _aim_particles: Array[Dictionary] = []  # {t: float, speed: float}
 var _aim_spawn_timer := 0.0
+var _avatar: _CharacterAvatar = null
 
 func _ready() -> void:
 	aim_line.visible = false
 	if barrel.has_node("BarrelSprite"):
 		barrel.get_node("BarrelSprite").visible = false
+	# Spawn character avatar
+	if RunState.is_run_active:
+		_avatar = _CharacterAvatar.new()
+		_avatar.position = Vector2(0, 8)
+		add_child(_avatar)
 
 func _process(delta: float) -> void:
 	_aim_at_mouse()
@@ -126,8 +132,64 @@ func force_fire() -> void:
 	if can_shoot:
 		_shoot()
 
+func set_avatar_mood(mood: int) -> void:
+	if _avatar:
+		_avatar.mood = mood
+
 func _shoot() -> void:
 	can_shoot = false
 	_recoil = 1.0
 	var dir := _get_launch_direction()
 	ball_fired.emit(spawn_point.global_position, dir, GameConfig.CANNON_LAUNCH_POWER)
+
+
+class _CharacterAvatar extends Node2D:
+	enum Mood { IDLE, EXCITED, WORRIED, CELEBRATING }
+	var mood: int = Mood.IDLE
+	var _time := 0.0
+	var _squash := 1.0
+	var _target_squash := 1.0
+	var _shake_offset := Vector2.ZERO
+
+	func _process(delta: float) -> void:
+		_time += delta
+		_squash = lerpf(_squash, _target_squash, delta * 8.0)
+		match mood:
+			Mood.IDLE:
+				_target_squash = 1.0
+				_shake_offset = Vector2.ZERO
+			Mood.EXCITED:
+				_target_squash = 1.0 + sin(_time * 8.0) * 0.1
+			Mood.WORRIED:
+				_shake_offset = Vector2(sin(_time * 20.0) * 1.5, 0)
+				_target_squash = 0.9
+			Mood.CELEBRATING:
+				_target_squash = 1.0 + sin(_time * 6.0) * 0.15
+		queue_redraw()
+
+	func _draw() -> void:
+		var id: String = CharacterManager.selected_character
+		var data: Dictionary = CharacterManager.get_selected()
+		var color: Color = data["color"]
+		var float_y := sin(_time * 2.0) * 2.0
+		var pos := Vector2(0, float_y) + _shake_offset
+		var radius := 12.0
+		var pulse := sin(_time * 3.0) * 0.15 + 0.85
+		var alpha := pulse
+
+		# Glow
+		for i in range(2):
+			var gr := radius + 4.0 + float(i) * 3.0
+			CharacterManager.draw_character_shape(self, id, pos, gr, Color(color.r, color.g, color.b, 0.06 * alpha), 1.0)
+
+		# Main shape (apply squash)
+		var scale_x := _squash
+		var scale_y := 2.0 - _squash  # Inverse squash for stretch
+		# We can't easily squash arbitrary shapes, so we scale the draw position
+		# Instead, just draw at full radius with glow modulation
+		CharacterManager.draw_character_shape(self, id, pos, radius * _squash, Color(color.r, color.g, color.b, alpha), 2.0)
+		# Inner shape
+		CharacterManager.draw_character_shape(self, id, pos, radius * 0.5 * _squash, Color(color.r, color.g, color.b, alpha * 0.3), 1.0)
+		# Center dot
+		draw_circle(pos, 2.0, Color(color.r, color.g, color.b, alpha * 0.8))
+		draw_circle(pos, 1.0, Color(1, 1, 1, alpha * 0.6))

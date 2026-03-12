@@ -16,6 +16,10 @@ static func generate(params: Dictionary) -> LevelData:
 	var purple_count: int = params.get("purple_count", 1)
 	var min_spacing: float = params.get("min_spacing", GameConfig.PEG_RADIUS * 3.0)
 
+	# Character passive: Hexxa gets extra green pegs
+	if RunState.is_run_active:
+		green_count += CharacterManager.get_extra_green_pegs()
+
 	# Apply board modifiers from events
 	var mods: Dictionary = RunState.next_board_mods if RunState.next_board_mods else {}
 	if mods.has("extra_green"):
@@ -365,6 +369,13 @@ static func _assign_power_ups(types: Array[String], act: int, rng: RandomNumberG
 	power_ups.resize(count)
 	for i in range(count):
 		power_ups[i] = ""
+
+	# In roguelite mode, green pegs use character powers instead of random power-ups
+	if RunState.is_run_active:
+		for i in range(count):
+			if types[i] == "green":
+				power_ups[i] = "character_power"
+		return power_ups
 
 	var available: Array[String] = []
 	match act:

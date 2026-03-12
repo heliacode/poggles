@@ -146,6 +146,14 @@ func set_colorblind_mode(val: bool) -> void:
 	_config.set_value("settings", "colorblind", val)
 	save()
 
+# Character selection
+func get_selected_character() -> String:
+	return _config.get_value("meta", "selected_character", "orbie")
+
+func set_selected_character(id: String) -> void:
+	_config.set_value("meta", "selected_character", id)
+	save()
+
 func add_run_stats(boards_cleared: int, score: int, pegs_hit: int, won: bool) -> void:
 	var runs := get_runs_completed()
 	_config.set_value("stats", "runs_completed", runs + 1)

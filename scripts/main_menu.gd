@@ -78,8 +78,7 @@ func _draw() -> void:
 		draw_string(font, Vector2(center_x - stats_size.x / 2.0, 690), stats, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.4, 0.5, 0.7, 0.4 * stats_t))
 
 func _on_new_run_pressed() -> void:
-	RunState.start_new_run()
-	SceneManager.go_to_act_intro(RunState.current_act)
+	SceneManager.go_to_character_select()
 
 func _on_unlocks_pressed() -> void:
 	SceneManager.go_to_unlock_screen()

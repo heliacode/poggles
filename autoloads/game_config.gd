@@ -83,6 +83,7 @@ const EVENT_SCENE_PATH := "res://scenes/event_screen.tscn"
 const RELIC_REWARD_SCENE_PATH := "res://scenes/relic_reward.tscn"
 const SHOP_SCENE_PATH := "res://scenes/shop.tscn"
 const UNLOCK_SCENE_PATH := "res://scenes/unlock_screen.tscn"
+const CHARACTER_SELECT_SCENE_PATH := "res://scenes/character_select.tscn"
 
 # Star thresholds (percentage of max possible score)
 const STAR_THRESHOLDS := [0.25, 0.50, 0.80]

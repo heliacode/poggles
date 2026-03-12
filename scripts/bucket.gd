@@ -6,11 +6,14 @@ var direction := 1.0
 var _pulse := 0.0
 var _trail: Array[Vector2] = []
 const _TRAIL_MAX := 15
+var _width_mult := 1.0
 
 @onready var collision := $CollisionShape2D
 @onready var catch_area := $CatchArea
 
 func _ready() -> void:
+	add_to_group("bucket")
+	_width_mult = CharacterManager.get_bucket_width_multiplier() if RunState.is_run_active else 1.0
 	_setup_collision()
 	_setup_catch_area()
 	if has_node("BucketSprite"):
@@ -26,7 +29,7 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var c := GameConfig.BUCKET_COLOR
 	var pulse := sin(_pulse) * 0.15 + 0.85
-	var hw := GameConfig.BUCKET_WIDTH / 2.0
+	var hw := GameConfig.BUCKET_WIDTH * _width_mult / 2.0
 	var hh := GameConfig.BUCKET_HEIGHT / 2.0
 
 	# Glow trail
@@ -57,12 +60,12 @@ func _draw() -> void:
 
 func _setup_collision() -> void:
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(GameConfig.BUCKET_WIDTH, GameConfig.BUCKET_HEIGHT)
+	shape.size = Vector2(GameConfig.BUCKET_WIDTH * _width_mult, GameConfig.BUCKET_HEIGHT)
 	collision.shape = shape
 
 func _setup_catch_area() -> void:
 	var area_shape := RectangleShape2D.new()
-	area_shape.size = Vector2(GameConfig.BUCKET_WIDTH - 10, 30)
+	area_shape.size = Vector2((GameConfig.BUCKET_WIDTH - 10) * _width_mult, 30)
 	var area_collision: CollisionShape2D = catch_area.get_child(0)
 	area_collision.shape = area_shape
 	area_collision.position = Vector2(0, -20)

@@ -25,6 +25,7 @@ SceneManager="*res://autoloads/scene_manager.gd"
 FeverManager="*res://autoloads/fever_manager.gd"
 PowerUpManager="*res://autoloads/power_up_manager.gd"
 RelicManager="*res://autoloads/relic_manager.gd"
+CharacterManager="*res://autoloads/character_manager.gd"
 McpBridgeGame="*res://mcp_bridge_game.gd"
 
 [display]

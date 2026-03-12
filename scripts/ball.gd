@@ -2,7 +2,6 @@ extends RigidBody2D
 
 signal ball_lost
 
-var _trail: Array[Vector2] = []
 var _speed_ratio := 0.0
 var _impact_flash := 0.0
 var _impact_normal := Vector2.ZERO
@@ -11,6 +10,11 @@ var score_multiplier := 1.0
 var is_clone := false
 var phantom_active := false
 var overload_pending := false
+var piercing_remaining := 0
+
+var _glow_sprite: ColorRect
+var _glow_material: ShaderMaterial
+var _glow_shader: Shader
 
 func _ready() -> void:
 	contact_monitor = true
@@ -20,58 +24,38 @@ func _ready() -> void:
 	physics_material_override.bounce = GameConfig.BALL_BOUNCE
 	physics_material_override.friction = GameConfig.BALL_FRICTION
 	body_entered.connect(_on_body_entered)
+	_setup_glow()
+
+func _setup_glow() -> void:
+	_glow_shader = load("res://shaders/neon_glow.gdshader")
+	_glow_material = ShaderMaterial.new()
+	_glow_material.shader = _glow_shader
+	var c := GameConfig.BALL_COLOR
+	_glow_material.set_shader_parameter("glow_color", Color(c.r, c.g, c.b, 1.0))
+	_glow_material.set_shader_parameter("intensity", 0.7)
+	_glow_material.set_shader_parameter("falloff", 2.0)
+	_glow_sprite = ColorRect.new()
+	var glow_size := 80.0
+	_glow_sprite.size = Vector2(glow_size, glow_size)
+	_glow_sprite.position = Vector2(-glow_size / 2.0, -glow_size / 2.0)
+	_glow_sprite.color = Color.WHITE
+	_glow_sprite.material = _glow_material
+	_glow_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_glow_sprite.z_index = -1
+	add_child(_glow_sprite)
 
 func _draw() -> void:
 	var c := GameConfig.BALL_COLOR
-	var visible_count := int(lerpf(8.0, 20.0, _speed_ratio))
-
-	# Trail with speed-reactive rendering
-	var trail_start := maxi(0, _trail.size() - visible_count)
-	var draw_count := _trail.size() - trail_start
-	for i in range(trail_start + 1, _trail.size()):
-		var local_i := i - trail_start
-		var t := float(local_i) / float(draw_count)
-		var alpha := pow(t, 1.5) * 0.7
-		var width := t * lerpf(4.0, 2.0, _speed_ratio)
-		var glow_width := width + lerpf(6.0, 2.0, _speed_ratio)
-		var glow_alpha := alpha * lerpf(0.2, 0.5, _speed_ratio)
-		var p1: Vector2 = _trail[i - 1] - global_position
-		var p2: Vector2 = _trail[i] - global_position
-		# Subtle color cooling on tail
-		var trail_col := c.lerp(Color(0.85, 0.95, 1.0), (1.0 - t) * 0.2)
-		draw_line(p1, p2, Color(trail_col.r, trail_col.g, trail_col.b, glow_alpha), glow_width)
-		draw_line(p1, p2, Color(trail_col.r, trail_col.g, trail_col.b, alpha), width)
 
 	# Impact flash arc
 	if _impact_flash > 0:
 		var impact_angle := _impact_normal.angle()
 		draw_arc(Vector2.ZERO, GameConfig.BALL_RADIUS + 2, impact_angle - 0.8, impact_angle + 0.8, 8, Color(1, 1, 1, _impact_flash * 0.7), 2.0, true)
 
-	# Outer glow
-	for i in range(4):
-		var r := GameConfig.BALL_RADIUS + 8.0 - float(i) * 2.0
-		draw_circle(Vector2.ZERO, r, Color(c.r, c.g, c.b, 0.08))
-
-	# Multiplier gold tint
-	if score_multiplier > 1.0:
-		var gold := Color(1.0, 0.85, 0.0)
-		draw_circle(Vector2.ZERO, GameConfig.BALL_RADIUS + 4, Color(gold.r, gold.g, gold.b, 0.06))
-
-	# Fever mode glow
-	if FeverManager.is_fever_active:
-		var fever_gold := Color(1.0, 0.85, 0.0)
-		# Extra outer glow rings in gold
-		for fi in range(3):
-			var fr := GameConfig.BALL_RADIUS + 10.0 + float(fi) * 4.0
-			draw_circle(Vector2.ZERO, fr, Color(fever_gold.r, fever_gold.g, fever_gold.b, 0.12 - float(fi) * 0.03))
-		# Override trail color to gold in the trail section above is handled by c, so tint the core
-		draw_circle(Vector2.ZERO, GameConfig.BALL_RADIUS + 2, Color(fever_gold.r, fever_gold.g, fever_gold.b, 0.15))
-
 	# Phantom pass visual
 	if phantom_active:
 		var phantom_col := Color(0.5, 0.8, 1.0, 0.3)
 		draw_arc(Vector2.ZERO, GameConfig.BALL_RADIUS + 6, 0, TAU, 32, phantom_col, 1.5, true)
-		draw_circle(Vector2.ZERO, GameConfig.BALL_RADIUS + 3, Color(0.5, 0.8, 1.0, 0.08))
 
 	# Speed ring at high velocity
 	if _speed_ratio > 0.8:
@@ -99,6 +83,9 @@ func _physics_process(delta: float) -> void:
 	# Impact flash decay
 	if _impact_flash > 0:
 		_impact_flash = maxf(0, _impact_flash - delta * 8.0)
+
+	# Update glow shader
+	_update_glow()
 
 	# Spawn ambient drift motes
 	_mote_timer += 1
@@ -131,10 +118,33 @@ func _physics_process(delta: float) -> void:
 					if global_position.distance_to(peg.global_position) < GameConfig.PEG_RADIUS + GameConfig.BALL_RADIUS + 2:
 						peg.hit()
 
-	_trail.append(global_position)
-	if _trail.size() > GameConfig.BALL_TRAIL_LENGTH:
-		_trail.remove_at(0)
 	queue_redraw()
+
+func _update_glow() -> void:
+	if not _glow_material:
+		return
+	var c := GameConfig.BALL_COLOR
+	var glow_intensity := 0.7 + _speed_ratio * 0.5
+	var glow_color := Color(c.r, c.g, c.b, 1.0)
+
+	# Fever mode: golden glow
+	if FeverManager.is_fever_active:
+		glow_color = Color(1.0, 0.85, 0.0, 1.0)
+		glow_intensity += 0.4
+
+	# Multiplier: warm tint
+	if score_multiplier > 1.0:
+		glow_color = glow_color.lerp(Color(1.0, 0.85, 0.0, 1.0), 0.3)
+		glow_intensity += 0.2
+
+	# Impact flash boost
+	if _impact_flash > 0:
+		glow_color = glow_color.lerp(Color.WHITE, _impact_flash * 0.5)
+		glow_intensity += _impact_flash * 1.0
+
+	_glow_material.set_shader_parameter("glow_color", glow_color)
+	_glow_material.set_shader_parameter("intensity", glow_intensity)
+	_glow_material.set_shader_parameter("pulse", _speed_ratio * 0.5)
 
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("hit"):
@@ -145,6 +155,15 @@ func _on_body_entered(body: Node) -> void:
 		for i in range(3):
 			_spawn_mote_at(_impact_normal, true)
 		body.hit()
+		# Piercing: temporarily disable collision with this peg
+		if piercing_remaining > 0 and body is StaticBody2D:
+			piercing_remaining -= 1
+			body.set_collision_layer_value(1, false)
+			# Re-enable after a short delay
+			get_tree().create_timer(0.3).timeout.connect(func():
+				if is_instance_valid(body):
+					body.set_collision_layer_value(1, true)
+			)
 
 func _spawn_mote() -> void:
 	var mote := _BallMote.new()
