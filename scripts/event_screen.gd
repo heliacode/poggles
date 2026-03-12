@@ -257,7 +257,7 @@ func _draw() -> void:
 			draw_rect(rect, Color(CHOICE_COLOR.r, CHOICE_COLOR.g, CHOICE_COLOR.b, 0.08), true)
 			_draw_neon_border(rect, CHOICE_COLOR, 0.9)
 			var choice: Dictionary = _event.choices[_chosen_index]
-			var text := _event.choices[_chosen_index]["text"]
+			var text: String = _event.choices[_chosen_index]["text"]
 			var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16)
 			var text_pos := Vector2(
 				rect.position.x + (rect.size.x - text_size.x) / 2.0,
