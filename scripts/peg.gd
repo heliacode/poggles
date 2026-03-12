@@ -14,6 +14,9 @@ var _special_pulse := 0.0
 var _armor_hits := 0
 var _bolt_rng_offset := 0.0
 var _anticipation := 0.0
+var _move_origin := Vector2.ZERO
+var _move_time := 0.0
+var _moving := false
 
 var _glow_sprite: ColorRect
 var _glow_material: ShaderMaterial
@@ -30,6 +33,10 @@ func _ready() -> void:
 	if has_node("Sprite"):
 		$Sprite.visible = false
 	_setup_glow()
+	if special_type == "moving":
+		_moving = true
+		_move_origin = position
+		_move_time = randf() * TAU  # Random phase so they don't all sync
 
 func _setup_glow() -> void:
 	var shader := load("res://shaders/peg_glow.gdshader")
@@ -47,6 +54,16 @@ func _setup_glow() -> void:
 	_glow_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_glow_sprite.z_index = -1
 	add_child(_glow_sprite)
+
+func _physics_process(delta: float) -> void:
+	if _moving and not _hit:
+		_move_time += delta * 2.0  # Controls speed of oscillation
+		var offset := sin(_move_time) * GameConfig.MOVING_PEG_RANGE
+		position.x = _move_origin.x + offset
+		# Set constant_linear_velocity so ball bounces correctly off the moving surface
+		constant_linear_velocity = Vector2(cos(_move_time) * 2.0 * GameConfig.MOVING_PEG_RANGE, 0)
+	elif _moving and _hit:
+		constant_linear_velocity = Vector2.ZERO
 
 func set_anticipation(val: float) -> void:
 	_anticipation = val
@@ -156,6 +173,7 @@ func _draw_special(ring_alpha: float, pulse: float) -> void:
 		"multiplier": _draw_multiplier(ring_alpha, pulse)
 		"chain": _draw_chain(ring_alpha)
 		"gravity": _draw_gravity(ring_alpha)
+		"moving": _draw_moving(ring_alpha, pulse)
 
 func _draw_bomb(ring_alpha: float, pulse: float) -> void:
 	var bc := GameConfig.SPECIAL_PEG_COLORS["bomb"]
@@ -239,6 +257,29 @@ func _draw_gravity(ring_alpha: float) -> void:
 		if i % 2 == 0:
 			draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS + 8, a, a + TAU / 24.0, 4, Color(vc.r, vc.g, vc.b, 0.2 + sin(_pulse) * 0.1), 1.0, true)
 
+func _draw_moving(ring_alpha: float, pulse: float) -> void:
+	var mc := GameConfig.SPECIAL_PEG_COLORS["moving"]
+	# Offset to account for current movement (draw path relative to origin, not moving peg)
+	var cur_offset := position.x - _move_origin.x if _moving else 0.0
+	# Ghost path line showing patrol range (stays fixed in world space)
+	var path_alpha := 0.15 + sin(_pulse) * 0.05
+	draw_line(Vector2(-GameConfig.MOVING_PEG_RANGE - cur_offset, 0), Vector2(GameConfig.MOVING_PEG_RANGE - cur_offset, 0), Color(mc.r, mc.g, mc.b, path_alpha), 1.0)
+	# Small endpoint dots
+	draw_circle(Vector2(-GameConfig.MOVING_PEG_RANGE - cur_offset, 0), 2.0, Color(mc.r, mc.g, mc.b, path_alpha * 0.7))
+	draw_circle(Vector2(GameConfig.MOVING_PEG_RANGE - cur_offset, 0), 2.0, Color(mc.r, mc.g, mc.b, path_alpha * 0.7))
+	# Direction arrow (shows current movement direction)
+	var dir_x := cos(_move_time) * 8.0
+	var arrow_tip := Vector2(dir_x, 0)
+	var arrow_back_l := Vector2(dir_x - sign(dir_x) * 4.0, -3.0)
+	var arrow_back_r := Vector2(dir_x - sign(dir_x) * 4.0, 3.0)
+	draw_line(arrow_tip, arrow_back_l, Color(mc.r, mc.g, mc.b, 0.5), 1.5)
+	draw_line(arrow_tip, arrow_back_r, Color(mc.r, mc.g, mc.b, 0.5), 1.5)
+	# Motion trail lines
+	for i in range(3):
+		var trail_offset := -sign(cos(_move_time)) * (float(i + 1) * 5.0)
+		var trail_alpha := 0.2 - float(i) * 0.06
+		draw_line(Vector2(trail_offset, -GameConfig.PEG_RADIUS * 0.5), Vector2(trail_offset, GameConfig.PEG_RADIUS * 0.5), Color(mc.r, mc.g, mc.b, trail_alpha), 1.0)
+
 func _setup_collision() -> void:
 	var shape := CircleShape2D.new()
 	shape.radius = GameConfig.PEG_RADIUS
@@ -266,6 +307,9 @@ func hit() -> void:
 		return
 
 	_hit = true
+	if _moving:
+		_moving = false
+		constant_linear_velocity = Vector2.ZERO
 	_hit_flash = 1.0
 	_color = GameConfig.PEG_HIT_COLORS.get(peg_type, Color.WHITE)
 
@@ -274,6 +318,7 @@ func hit() -> void:
 		"chain": _spawn_chain_particles()
 		"gravity": _spawn_gravity_particles()
 		"multiplier": _spawn_multiplier_particles()
+		"moving": _spawn_moving_particles()
 		_: _spawn_hit_particles()
 
 	peg_hit.emit(self)
@@ -338,6 +383,18 @@ func _spawn_multiplier_particles() -> void:
 		spark._color = gc
 		spark._angle = TAU * float(i) / 8.0 + 0.5  # Spiral offset
 		spark._speed = randf_range(80, 140)
+		spark._lifetime = 0.4
+		add_child(spark)
+	_spawn_hit_particles()
+
+func _spawn_moving_particles() -> void:
+	var mc := GameConfig.SPECIAL_PEG_COLORS["moving"]
+	# Satisfying "pinned" effect - sparks fly in the direction of movement
+	for i in range(10):
+		var spark := _NeonSpark.new()
+		spark._color = mc
+		spark._angle = randf_range(-0.5, 0.5)  # Mostly forward
+		spark._speed = randf_range(100, 200)
 		spark._lifetime = 0.4
 		add_child(spark)
 	_spawn_hit_particles()

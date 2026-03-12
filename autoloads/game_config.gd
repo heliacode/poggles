@@ -101,6 +101,7 @@ const SPECIAL_PEG_COLORS := {
 	"multiplier": Color(1.0, 0.85, 0.0),
 	"chain": Color(0.0, 1.0, 1.0),
 	"gravity": Color(0.6, 0.2, 0.9),
+	"moving": Color(0.0, 0.9, 0.7),
 }
 
 const BOMB_RADIUS := 120.0
@@ -110,3 +111,5 @@ const GRAVITY_WELL_DURATION := 4.0
 const GRAVITY_WELL_RADIUS := 180.0
 const GRAVITY_WELL_FORCE := 8000.0
 const GRAVITY_WELL_MAX_ACCEL := 200.0
+const MOVING_PEG_SPEED := 70.0
+const MOVING_PEG_RANGE := 60.0  # ±60px patrol from start position

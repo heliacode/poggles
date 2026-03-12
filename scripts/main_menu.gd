@@ -77,6 +77,42 @@ func _draw() -> void:
 		var stats_size := font.get_string_size(stats, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
 		draw_string(font, Vector2(center_x - stats_size.x / 2.0, 690), stats, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.4, 0.5, 0.7, 0.4 * stats_t))
 
+	# Debug hotkey hint (bottom-right, very dim)
+	var debug_hint := "F1-F6: Debug"
+	var hint_size := font.get_string_size(debug_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11)
+	draw_string(font, Vector2(vp.x - hint_size.x - 8, vp.y - 8), debug_hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1.0, 1.0, 1.0, 0.15))
+
+func _input(event: InputEvent) -> void:
+	if not event is InputEventKey or not event.pressed or event.echo:
+		return
+	match event.keycode:
+		KEY_F1:  # Quick Board — jump to Act 1 gameplay
+			_debug_start_run()
+			SceneManager.change_scene(GameConfig.GAMEPLAY_SCENE_PATH)
+		KEY_F2:  # Quick Shop — 100 coins, jump to shop
+			_debug_start_run()
+			RunState.coins = 100
+			SceneManager.go_to_shop()
+		KEY_F3:  # Quick Event — jump to event screen
+			_debug_start_run()
+			SceneManager.go_to_event()
+		KEY_F4:  # Quick Boss — boss board, jump to gameplay
+			_debug_start_run()
+			RunState.current_board_index = 4
+			SceneManager.change_scene(GameConfig.GAMEPLAY_SCENE_PATH)
+		KEY_F5:  # Quick Late Game — Act 3 Board 2 (has moving pegs)
+			_debug_start_run()
+			RunState.current_act = 3
+			RunState.current_board_index = 2
+			SceneManager.change_scene(GameConfig.GAMEPLAY_SCENE_PATH)
+		KEY_F6:  # Quick Route Map — jump to route map
+			_debug_start_run()
+			SceneManager.go_to_route_map()
+
+func _debug_start_run() -> void:
+	CharacterManager.select_character("orbie")
+	RunState.start_new_run()
+
 func _on_new_run_pressed() -> void:
 	SceneManager.go_to_character_select()
 

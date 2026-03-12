@@ -308,6 +308,7 @@ static func _assign_specials(types: Array[String], act: int, is_boss: bool, rng:
 	var multiplier_count := 0
 	var chain_count := 0
 	var gravity_count := 0
+	var moving_count := 0
 
 	match act:
 		1:
@@ -318,17 +319,20 @@ static func _assign_specials(types: Array[String], act: int, is_boss: bool, rng:
 			armored_count = 2
 			multiplier_count = 1
 			chain_count = 1
+			moving_count = 1
 		3:
 			bomb_count = 2
 			armored_count = 3
 			multiplier_count = 1
 			chain_count = 2
 			gravity_count = 1
+			moving_count = 2
 
 	if is_boss:
 		bomb_count += 1
 		armored_count += 2
 		gravity_count += 1
+		moving_count += 1
 
 	# Collect indices of blue pegs (specials go on blue pegs only, not orange/green/purple)
 	var blue_indices: Array[int] = []
@@ -351,6 +355,7 @@ static func _assign_specials(types: Array[String], act: int, is_boss: bool, rng:
 	assignments.append({"type": "multiplier", "count": multiplier_count})
 	assignments.append({"type": "chain", "count": chain_count})
 	assignments.append({"type": "gravity", "count": gravity_count})
+	assignments.append({"type": "moving", "count": moving_count})
 
 	for assignment in assignments:
 		var stype: String = assignment["type"]
