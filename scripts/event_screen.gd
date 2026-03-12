@@ -224,7 +224,7 @@ func _draw() -> void:
 				draw_rect(rect, Color(c.r, c.g, c.b, 0.06), true)
 
 			# Choice letter prefix
-			var prefix := ["A", "B", "C"][i] + ": "
+			var prefix: String = ["A", "B", "C"][i] + ": "
 			var text: String = prefix + choice["text"]
 
 			# Probability hint
