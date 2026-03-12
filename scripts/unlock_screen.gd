@@ -146,7 +146,7 @@ func _draw() -> void:
 			continue
 		var is_hovered := i == _hover_index
 		var unlocked: bool = node["unlocked"]
-		var can_afford := SaveData.get_stardust() >= node["cost"]
+		var can_afford: bool = SaveData.get_stardust() >= node["cost"]
 
 		var c: Color
 		if unlocked:

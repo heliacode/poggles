@@ -176,7 +176,7 @@ func _draw_special(ring_alpha: float, pulse: float) -> void:
 		"moving": _draw_moving(ring_alpha, pulse)
 
 func _draw_bomb(ring_alpha: float, pulse: float) -> void:
-	var bc := GameConfig.SPECIAL_PEG_COLORS["bomb"]
+	var bc: Color = GameConfig.SPECIAL_PEG_COLORS["bomb"]
 	# Rotating starburst
 	for i in range(6):
 		var angle := _special_pulse * 0.5 + TAU * float(i) / 6.0
@@ -192,7 +192,7 @@ func _draw_bomb(ring_alpha: float, pulse: float) -> void:
 		draw_circle(Vector2.ZERO, r, Color(bc.r, bc.g, bc.b, 0.04 * (sin(_special_pulse * 2.0) * 0.5 + 0.5)))
 
 func _draw_armored(ring_alpha: float) -> void:
-	var ac := GameConfig.SPECIAL_PEG_COLORS["armored"]
+	var ac: Color = GameConfig.SPECIAL_PEG_COLORS["armored"]
 	# Armor rings based on remaining hits
 	for layer in range(_armor_hits):
 		var r := GameConfig.PEG_RADIUS + 3.0 + float(layer) * 3.0
@@ -211,7 +211,7 @@ func _draw_armored(ring_alpha: float) -> void:
 			draw_colored_polygon(pts, Color(ac.r, ac.g, ac.b, 0.5))
 
 func _draw_multiplier(ring_alpha: float, pulse: float) -> void:
-	var gc := GameConfig.SPECIAL_PEG_COLORS["multiplier"]
+	var gc: Color = GameConfig.SPECIAL_PEG_COLORS["multiplier"]
 	# Orbiting dots
 	for i in range(4):
 		var angle := _special_pulse * TAU / 3.0 + TAU * float(i) / 4.0
@@ -225,7 +225,7 @@ func _draw_multiplier(ring_alpha: float, pulse: float) -> void:
 		draw_circle(Vector2.ZERO, 18.0 + float(i) * 4.0, Color(gc.r, gc.g, gc.b, 0.03))
 
 func _draw_chain(ring_alpha: float) -> void:
-	var cc := GameConfig.SPECIAL_PEG_COLORS["chain"]
+	var cc: Color = GameConfig.SPECIAL_PEG_COLORS["chain"]
 	# Electric bolt pattern (3 jagged lines)
 	var t := _special_pulse * 2.0
 	var refresh := int(t) % 100  # Changes every ~0.5s
@@ -243,7 +243,7 @@ func _draw_chain(ring_alpha: float) -> void:
 	draw_circle(Vector2.ZERO, 1.5, Color(0.5, 1.0, 1.0, 0.8))
 
 func _draw_gravity(ring_alpha: float) -> void:
-	var vc := GameConfig.SPECIAL_PEG_COLORS["gravity"]
+	var vc: Color = GameConfig.SPECIAL_PEG_COLORS["gravity"]
 	# Swirling spiral arms
 	for arm in range(2):
 		var arm_offset := PI * float(arm)
@@ -258,7 +258,7 @@ func _draw_gravity(ring_alpha: float) -> void:
 			draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS + 8, a, a + TAU / 24.0, 4, Color(vc.r, vc.g, vc.b, 0.2 + sin(_pulse) * 0.1), 1.0, true)
 
 func _draw_moving(ring_alpha: float, pulse: float) -> void:
-	var mc := GameConfig.SPECIAL_PEG_COLORS["moving"]
+	var mc: Color = GameConfig.SPECIAL_PEG_COLORS["moving"]
 	# Offset to account for current movement (draw path relative to origin, not moving peg)
 	var cur_offset := position.x - _move_origin.x if _moving else 0.0
 	# Ghost path line showing patrol range (stays fixed in world space)
@@ -332,7 +332,7 @@ func _spawn_hit_particles() -> void:
 		add_child(spark)
 
 func _spawn_bomb_particles() -> void:
-	var bc := GameConfig.SPECIAL_PEG_COLORS["bomb"]
+	var bc: Color = GameConfig.SPECIAL_PEG_COLORS["bomb"]
 	for i in range(24):
 		var spark := _NeonSpark.new()
 		spark._color = bc.lerp(_color, 0.3)
@@ -348,7 +348,7 @@ func _spawn_bomb_particles() -> void:
 	get_parent().add_child(ring)
 
 func _spawn_chain_particles() -> void:
-	var cc := GameConfig.SPECIAL_PEG_COLORS["chain"]
+	var cc: Color = GameConfig.SPECIAL_PEG_COLORS["chain"]
 	for i in range(8):
 		var spark := _NeonSpark.new()
 		spark._color = cc
@@ -358,7 +358,7 @@ func _spawn_chain_particles() -> void:
 		add_child(spark)
 
 func _spawn_gravity_particles() -> void:
-	var vc := GameConfig.SPECIAL_PEG_COLORS["gravity"]
+	var vc: Color = GameConfig.SPECIAL_PEG_COLORS["gravity"]
 	# Inward-converging sparks
 	for i in range(12):
 		var spark := _NeonSpark.new()
@@ -377,7 +377,7 @@ func _spawn_gravity_particles() -> void:
 	get_parent().add_child(ring)
 
 func _spawn_multiplier_particles() -> void:
-	var gc := GameConfig.SPECIAL_PEG_COLORS["multiplier"]
+	var gc: Color = GameConfig.SPECIAL_PEG_COLORS["multiplier"]
 	for i in range(8):
 		var spark := _NeonSpark.new()
 		spark._color = gc
@@ -388,7 +388,7 @@ func _spawn_multiplier_particles() -> void:
 	_spawn_hit_particles()
 
 func _spawn_moving_particles() -> void:
-	var mc := GameConfig.SPECIAL_PEG_COLORS["moving"]
+	var mc: Color = GameConfig.SPECIAL_PEG_COLORS["moving"]
 	# Satisfying "pinned" effect - sparks fly in the direction of movement
 	for i in range(10):
 		var spark := _NeonSpark.new()
@@ -400,7 +400,7 @@ func _spawn_moving_particles() -> void:
 	_spawn_hit_particles()
 
 func _spawn_armor_shards() -> void:
-	var ac := GameConfig.SPECIAL_PEG_COLORS["armored"]
+	var ac: Color = GameConfig.SPECIAL_PEG_COLORS["armored"]
 	for i in range(6):
 		var shard := _ArmorShard.new()
 		shard._color = ac

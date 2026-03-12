@@ -192,7 +192,7 @@ func _draw_card(index: int, pulse: float, card_ease: float) -> void:
 		var lock_size := font.get_string_size(lock_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 14)
 		draw_string(font, Vector2(center.x - lock_size.x / 2.0, rect.position.y + rect.size.y * 0.88), lock_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.7, 0.5, 0.5, alpha * 1.5))
 
-		var cost_text := "%d" % data["unlock_cost"]
+		var cost_text: String = "%d" % data["unlock_cost"]
 		var cost_size := font.get_string_size(cost_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
 		draw_string(font, Vector2(center.x - cost_size.x / 2.0, rect.position.y + rect.size.y * 0.95), cost_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.85, 0.0, alpha * 1.5))
 

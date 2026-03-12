@@ -366,7 +366,7 @@ func _draw() -> void:
 		for item in _score_tally_items:
 			if _score_tally_time < item["delay"]:
 				continue
-			var item_alpha := minf((_score_tally_time - item["delay"]) * 4.0, 1.0)
+			var item_alpha: float = minf((_score_tally_time - item["delay"]) * 4.0, 1.0)
 			var y_offset := (1.0 - item_alpha) * -15.0
 			var label: String = item["label"]
 			var value: String = item["value"]

@@ -100,7 +100,7 @@ func _handle_click(click_pos: Vector2) -> void:
 		# Check if this node is reachable via connections
 		var info: Dictionary = _node_rects[clicked_index]
 		if _is_node_reachable(info["row"], info["col"]):
-			var chosen := RunState.advance_route(info["col"])
+			var chosen: String = RunState.advance_route(info["col"])
 			if chosen.is_empty():
 				return
 			# Scroll to new position

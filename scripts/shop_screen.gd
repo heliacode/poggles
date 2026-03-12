@@ -131,7 +131,7 @@ func _draw() -> void:
 		var item: Dictionary = _items[i]
 		var rect: Rect2 = _item_rects[i]
 		var is_hovered := i == _hover_index
-		var can_afford := RunState.coins >= item["cost"]
+		var can_afford: bool = RunState.coins >= item["cost"]
 		var c: Color = item.get("rarity_color", Color(0.5, 0.7, 1.0))
 		if not can_afford:
 			c = Color(0.4, 0.4, 0.5)
@@ -161,7 +161,7 @@ func _draw() -> void:
 		draw_string(font, Vector2(rect.position.x + (rect.size.x - desc_size.x) / 2.0, rect.position.y + 60), desc, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.6, 0.7, 0.85, 0.7 * card_entrance))
 
 		# Cost
-		var cost_text := "%d coins" % item["cost"]
+		var cost_text: String = "%d coins" % item["cost"]
 		var cost_color := Color(1.0, 0.85, 0.3) if can_afford else Color(1.0, 0.3, 0.3)
 		var cost_size := font.get_string_size(cost_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16)
 		draw_string(font, Vector2(rect.position.x + (rect.size.x - cost_size.x) / 2.0, rect.position.y + 130), cost_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(cost_color.r, cost_color.g, cost_color.b, alpha * pulse))
