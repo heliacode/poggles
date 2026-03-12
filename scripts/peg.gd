@@ -15,6 +15,9 @@ var _armor_hits := 0
 var _bolt_rng_offset := 0.0
 var _anticipation := 0.0
 
+var _glow_sprite: ColorRect
+var _glow_material: ShaderMaterial
+
 @onready var collision := $CollisionShape2D
 
 func _ready() -> void:
@@ -26,6 +29,24 @@ func _ready() -> void:
 	_setup_collision()
 	if has_node("Sprite"):
 		$Sprite.visible = false
+	_setup_glow()
+
+func _setup_glow() -> void:
+	var shader := load("res://shaders/peg_glow.gdshader")
+	_glow_material = ShaderMaterial.new()
+	_glow_material.shader = shader
+	_glow_material.set_shader_parameter("glow_color", Color(_color.r, _color.g, _color.b, 1.0))
+	_glow_material.set_shader_parameter("intensity", 0.5)
+	_glow_material.set_shader_parameter("falloff", 2.5)
+	_glow_sprite = ColorRect.new()
+	var glow_size := 100.0
+	_glow_sprite.size = Vector2(glow_size, glow_size)
+	_glow_sprite.position = Vector2(-glow_size / 2.0, -glow_size / 2.0)
+	_glow_sprite.color = Color.WHITE
+	_glow_sprite.material = _glow_material
+	_glow_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_glow_sprite.z_index = -1
+	add_child(_glow_sprite)
 
 func set_anticipation(val: float) -> void:
 	_anticipation = val
@@ -40,27 +61,24 @@ func _process(delta: float) -> void:
 		_hit_flash = maxf(0, _hit_flash - delta * 3.0)
 	if _anticipation > 0:
 		_anticipation = maxf(0, _anticipation - delta * 5.0)
+	_update_glow_shader()
 	queue_redraw()
+
+func _update_glow_shader() -> void:
+	if not _glow_material:
+		return
+	var pulse_val := sin(_pulse) * 0.5 + 0.5
+	_glow_material.set_shader_parameter("glow_color", Color(_color.r, _color.g, _color.b, 1.0))
+	_glow_material.set_shader_parameter("pulse", pulse_val)
+	_glow_material.set_shader_parameter("hit_flash", _hit_flash)
+	_glow_material.set_shader_parameter("anticipation", _anticipation)
+	# Boost intensity when hit
+	var base_intensity := 0.7 if _hit else 0.5
+	_glow_material.set_shader_parameter("intensity", base_intensity)
 
 func _draw() -> void:
 	var pulse := sin(_pulse) * 0.3 + 0.7
 	var base := _color
-
-	# Outer glow layers
-	for i in range(5):
-		var r := GameConfig.PEG_RADIUS + 12.0 - float(i) * 2.0
-		var a := (0.06 + pulse * 0.03) * (1.0 - float(i) * 0.15)
-		if _hit:
-			a *= 1.8
-		draw_circle(Vector2.ZERO, r, Color(base.r, base.g, base.b, a))
-
-	# Anticipation glow (ball approaching)
-	if _anticipation > 0:
-		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS + 16.0, Color(base.r, base.g, base.b, 0.15 * _anticipation))
-
-	# Hit flash
-	if _hit_flash > 0:
-		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS + 8.0 * _hit_flash, Color(1, 1, 1, _hit_flash * 0.4))
 
 	# Main wireframe shape — colorblind mode uses distinct shapes per type
 	var ring_alpha := 0.8 + pulse * 0.2

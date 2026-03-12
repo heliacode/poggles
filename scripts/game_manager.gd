@@ -40,6 +40,10 @@ var _bucket_catch_sparks := false
 var _score_tally_items: Array[Dictionary] = []
 var _score_tally_time := 0.0
 var _showing_tally := false
+var _board_intro_time := 0.0
+var _board_intro_active := false
+var _board_intro_phase := -1  # -1=startup_delay, 0=fade_in, 1=hold, 2=fade_out
+var _intro_frames := 0  # Frame counter to prevent input bleed from scene transitions
 
 @onready var cannon := $Cannon
 @onready var pegs_container := $Pegs
@@ -83,13 +87,8 @@ func _ready() -> void:
 	if _is_roguelite:
 		RelicManager.on_board_start()
 		balls_remaining = RunState.balls_remaining
-	# Tutorial for first-time players
-	if SaveData.is_first_run() and not SaveData.has_completed_tutorial():
-		var tutorial_script := load("res://scripts/tutorial.gd")
-		_tutorial = Node.new()
-		_tutorial.set_script(tutorial_script)
-		add_child(_tutorial)
-		_tutorial.start_tutorial(self)
+	# Tutorial for first-time players (started after board intro finishes)
+	# See _start_playing() for tutorial init
 	if OS.has_feature("playtest") or OS.get_cmdline_args().has("--bot"):
 		_enable_bot()
 
@@ -143,22 +142,80 @@ func _connect_peg_signals() -> void:
 func _start_intro() -> void:
 	state = State.LEVEL_INTRO
 	cannon.can_shoot = false
-	var delay := 0.5
+	_board_intro_active = true
+	_board_intro_time = 0.0
+	_board_intro_phase = -1
+	_intro_frames = 0
+	# Hide game elements so the overlay (drawn on game_manager) is visible on top
+	pegs_container.visible = false
+	cannon.visible = false
+	bucket.visible = false
+	hud.visible = false
 	if _boss_data:
-		delay = 2.5  # Longer intro for boss
 		_boss_intro_done = false
-	var tween := create_tween()
-	tween.tween_interval(delay)
-	tween.tween_callback(func():
-		_boss_intro_done = true
-		_start_playing()
-	)
+
+func _show_game_elements() -> void:
+	pegs_container.visible = true
+	cannon.visible = true
+	bucket.visible = true
+	hud.visible = true
 
 func _start_playing() -> void:
 	state = State.PLAYING
 	cannon.can_shoot = true
+	_show_game_elements()
+	# Start tutorial after board intro so it doesn't overlap
+	if not _tutorial and SaveData.is_first_run() and not SaveData.has_completed_tutorial():
+		var tutorial_script := load("res://scripts/tutorial.gd")
+		_tutorial = Node.new()
+		_tutorial.set_script(tutorial_script)
+		add_child(_tutorial)
+		_tutorial.start_tutorial(self)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _board_intro_active:
+		# Block ALL input during early phases and first few frames to prevent scene transition bleed
+		if _intro_frames < 5 or _board_intro_phase <= 0:
+			get_viewport().set_input_as_handled()
+			return
+		# Allow skip during hold phase, but only after a grace period
+		if _board_intro_phase == 1 and _board_intro_time > 0.3:
+			if (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and event.keycode != KEY_ESCAPE):
+				_board_intro_phase = 2
+				_board_intro_time = 0.0
+				_show_game_elements()
+				get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
+	# Board intro overlay animation
+	if _board_intro_active:
+		_intro_frames += 1
+		_board_intro_time += delta
+		var startup_delay := 0.15
+		var fade_in := 0.5
+		var hold := 2.0 if not _boss_data else 3.0
+		var fade_out := 0.3
+		match _board_intro_phase:
+			-1:
+				if _board_intro_time >= startup_delay:
+					_board_intro_phase = 0
+					_board_intro_time = 0.0
+			0:
+				if _board_intro_time >= fade_in:
+					_board_intro_phase = 1
+					_board_intro_time = 0.0
+			1:
+				if _board_intro_time >= hold:
+					_board_intro_phase = 2
+					_board_intro_time = 0.0
+					_show_game_elements()
+			2:
+				if _board_intro_time >= fade_out:
+					_board_intro_active = false
+					_boss_intro_done = true
+					_start_playing()
+		queue_redraw()
+
 	if _flash_alpha > 0:
 		_flash_alpha *= 0.85
 		if _flash_alpha < 0.005:
@@ -281,15 +338,9 @@ func _draw() -> void:
 	if _flash_alpha > 0:
 		draw_rect(Rect2(0, 0, 1280, 720), Color(_flash_color.r, _flash_color.g, _flash_color.b, _flash_alpha))
 
-	# Boss intro overlay
-	if _boss_data and not _boss_intro_done:
-		var font := ThemeDB.fallback_font
-		var cx := 640.0
-		draw_rect(Rect2(0, 0, 1280, 720), Color(0.0, 0.0, 0.0, 0.6))
-		var name_size := font.get_string_size(_boss_data.boss_name, HORIZONTAL_ALIGNMENT_CENTER, -1, 42)
-		draw_string(font, Vector2(cx - name_size.x / 2.0, 320), _boss_data.boss_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(1.0, 0.2, 0.2))
-		var title_size := font.get_string_size(_boss_data.title, HORIZONTAL_ALIGNMENT_CENTER, -1, 18)
-		draw_string(font, Vector2(cx - title_size.x / 2.0, 360), _boss_data.title, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.8, 0.4, 0.4, 0.7))
+	# Board intro overlay (game elements hidden during intro for visibility)
+	if _board_intro_active:
+		_draw_board_intro()
 
 	# Boss HP bar
 	if _boss_data and _boss_intro_done:
@@ -356,6 +407,105 @@ func _draw_boss_hp_bar() -> void:
 	var hp_text := "%d / %d" % [_boss_hp, _boss_max_hp]
 	var hp_size := font.get_string_size(hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10)
 	draw_string(font, Vector2(bar_x + bar_width + 8, bar_y + bar_height - 1), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1.0, 0.5, 0.4, 0.7))
+
+func _draw_board_intro() -> void:
+	var font := ThemeDB.fallback_font
+	var cx := 640.0
+	var cy := 360.0
+
+	# Calculate alpha based on phase
+	var alpha := 0.0
+	match _board_intro_phase:
+		-1: alpha = 0.0  # Startup delay — dark overlay only
+		0: alpha = clampf(_board_intro_time / 0.5, 0.0, 1.0)
+		1: alpha = 1.0
+		2: alpha = clampf(1.0 - _board_intro_time / 0.3, 0.0, 1.0)
+
+	# Always show dark overlay while intro is active (even during startup delay)
+	if _board_intro_phase == -1:
+		draw_rect(Rect2(0, 0, 1280, 720), Color(0.01, 0.01, 0.03, 0.75))
+		return
+
+	# Dark overlay
+	draw_rect(Rect2(0, 0, 1280, 720), Color(0.01, 0.01, 0.03, 0.75 * alpha))
+
+	# Horizontal accent lines that sweep in
+	var line_progress := clampf(alpha * 1.5, 0.0, 1.0)
+	var line_hw := 280.0 * line_progress
+	var line_color := Color(0.3, 0.85, 1.0)
+	if _boss_data:
+		line_color = Color(1.0, 0.2, 0.2)
+	elif _is_roguelite:
+		var char_data: Dictionary = CharacterManager.get_selected()
+		line_color = char_data.get("color", Color(0.3, 0.85, 1.0))
+	draw_line(Vector2(cx - line_hw, cy - 60), Vector2(cx + line_hw, cy - 60), Color(line_color.r, line_color.g, line_color.b, 0.4 * alpha), 1.0)
+	draw_line(Vector2(cx - line_hw, cy + 60), Vector2(cx + line_hw, cy + 60), Color(line_color.r, line_color.g, line_color.b, 0.4 * alpha), 1.0)
+
+	# Small decorative corner brackets
+	var bk := 12.0
+	var bracket_alpha := 0.3 * alpha
+	var bc := Color(line_color.r, line_color.g, line_color.b, bracket_alpha)
+	# Top-left
+	draw_line(Vector2(cx - line_hw, cy - 60), Vector2(cx - line_hw, cy - 60 + bk), bc, 1.5)
+	draw_line(Vector2(cx - line_hw, cy - 60), Vector2(cx - line_hw + bk, cy - 60), bc, 1.5)
+	# Top-right
+	draw_line(Vector2(cx + line_hw, cy - 60), Vector2(cx + line_hw, cy - 60 + bk), bc, 1.5)
+	draw_line(Vector2(cx + line_hw, cy - 60), Vector2(cx + line_hw - bk, cy - 60), bc, 1.5)
+	# Bottom-left
+	draw_line(Vector2(cx - line_hw, cy + 60), Vector2(cx - line_hw, cy + 60 - bk), bc, 1.5)
+	draw_line(Vector2(cx - line_hw, cy + 60), Vector2(cx - line_hw + bk, cy + 60), bc, 1.5)
+	# Bottom-right
+	draw_line(Vector2(cx + line_hw, cy + 60), Vector2(cx + line_hw, cy + 60 - bk), bc, 1.5)
+	draw_line(Vector2(cx + line_hw, cy + 60), Vector2(cx + line_hw - bk, cy + 60), bc, 1.5)
+
+	if _boss_data:
+		# Boss intro
+		var name_text: String = _boss_data.boss_name
+		var name_size := font.get_string_size(name_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 42)
+		var slide := (1.0 - alpha) * 30.0
+		draw_string(font, Vector2(cx - name_size.x / 2.0, cy - 10 + slide), name_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 42, Color(1.0, 0.2, 0.2, alpha))
+
+		var title_text: String = _boss_data.title
+		var title_size := font.get_string_size(title_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 16)
+		var sub_alpha := clampf(alpha * 2.0 - 0.5, 0.0, 1.0)
+		draw_string(font, Vector2(cx - title_size.x / 2.0, cy + 30), title_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.8, 0.4, 0.4, 0.7 * sub_alpha))
+	else:
+		# Normal board intro
+		var slide := (1.0 - alpha) * 20.0
+
+		# Board name (big)
+		var board_name := ""
+		if _level_data:
+			board_name = _level_data.level_name
+		if board_name == "":
+			board_name = "Board %d" % RunState.get_current_board_number() if _is_roguelite else "Level %d" % SceneManager.current_level
+		var name_size := font.get_string_size(board_name, HORIZONTAL_ALIGNMENT_CENTER, -1, 32)
+		draw_string(font, Vector2(cx - name_size.x / 2.0, cy - 15 + slide), board_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color(line_color.r, line_color.g, line_color.b, alpha))
+
+		# Context line (act + board number or "Practice")
+		var context := ""
+		if _is_roguelite:
+			context = "Act %d  —  Board %d / %d" % [RunState.current_act, RunState.get_current_board_number(), RunState.get_total_boards()]
+		else:
+			context = "Practice Mode"
+		var ctx_size := font.get_string_size(context, HORIZONTAL_ALIGNMENT_CENTER, -1, 14)
+		var sub_alpha := clampf(alpha * 2.0 - 0.5, 0.0, 1.0)
+		draw_string(font, Vector2(cx - ctx_size.x / 2.0, cy + 20), context, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.5, 0.7, 0.9, 0.7 * sub_alpha))
+
+		# Orange peg count
+		var peg_info := "%d orange pegs" % orange_pegs_total if orange_pegs_total > 0 else ""
+		if peg_info != "":
+			var peg_size := font.get_string_size(peg_info, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
+			var peg_alpha := clampf(alpha * 2.0 - 0.8, 0.0, 1.0)
+			draw_string(font, Vector2(cx - peg_size.x / 2.0, cy + 42), peg_info, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.4, 0.05, 0.6 * peg_alpha))
+
+		# Character shape (small, in top-left of the intro frame)
+		if _is_roguelite:
+			var char_data: Dictionary = CharacterManager.get_selected()
+			var char_color: Color = char_data.get("color", Color.WHITE)
+			var shape_pos := Vector2(cx - line_hw + 30, cy)
+			var shape_alpha := 0.5 * alpha
+			CharacterManager.draw_character_shape(self, CharacterManager.selected_character, shape_pos, 16.0, Color(char_color.r, char_color.g, char_color.b, shape_alpha), 1.5)
 
 func _count_orange_pegs() -> void:
 	orange_pegs_total = 0
