@@ -276,7 +276,7 @@ func _draw_moving(ring_alpha: float, pulse: float) -> void:
 	draw_line(arrow_tip, arrow_back_r, Color(mc.r, mc.g, mc.b, 0.5), 1.5)
 	# Motion trail lines
 	for i in range(3):
-		var trail_offset := -sign(cos(_move_time)) * (float(i + 1) * 5.0)
+		var trail_offset: float = -sign(cos(_move_time)) * (float(i + 1) * 5.0)
 		var trail_alpha := 0.2 - float(i) * 0.06
 		draw_line(Vector2(trail_offset, -GameConfig.PEG_RADIUS * 0.5), Vector2(trail_offset, GameConfig.PEG_RADIUS * 0.5), Color(mc.r, mc.g, mc.b, trail_alpha), 1.0)
 
