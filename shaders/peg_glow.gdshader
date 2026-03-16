@@ -13,8 +13,8 @@ void fragment() {
 	float dist = length(UV - center) * 2.0;
 	float glow = pow(max(1.0 - dist, 0.0), falloff);
 
-	// Pulse breathing
-	float pulse_mod = 1.0 + pulse * 0.25;
+	// Pulse breathing — strong visible throb
+	float pulse_mod = 1.0 + pulse * 0.5;
 
 	// Hit flash: bright white burst — more dramatic
 	vec3 color = glow_color.rgb;

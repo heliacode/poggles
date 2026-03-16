@@ -10,6 +10,6 @@ void fragment() {
 	vec2 center = vec2(0.5);
 	float dist = length(UV - center) * 2.0;
 	float glow = pow(max(1.0 - dist, 0.0), falloff);
-	float pulse_mod = 1.0 + pulse * 0.3;
+	float pulse_mod = 1.0 + pulse * 0.5;
 	COLOR = vec4(glow_color.rgb * pulse_mod, glow * intensity * glow_color.a);
 }

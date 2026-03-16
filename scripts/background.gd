@@ -12,11 +12,11 @@ var _ripples: Array[Dictionary] = []
 const MAX_RIPPLES := 8
 
 # Grid visual constants
-const GRID_BASE_COLOR := Color(0.08, 0.18, 0.45)  # Electric blue
-const GRID_BRIGHT_COLOR := Color(0.12, 0.28, 0.65)  # Brighter center lines
-const DOT_COLOR := Color(0.15, 0.35, 0.75)
+const GRID_BASE_COLOR := Color(0.1, 0.25, 0.55)  # Brighter electric blue
+const GRID_BRIGHT_COLOR := Color(0.18, 0.4, 0.8)  # Much brighter center lines
+const DOT_COLOR := Color(0.2, 0.45, 0.85)
 const PULSE_FREQ := 2.5  # Hz for sine brightness pulse
-const PULSE_AMP := 0.10  # 10% brightness amplitude
+const PULSE_AMP := 0.15  # 15% brightness amplitude
 const RIPPLE_SPEED := 400.0  # px/sec expansion
 const RIPPLE_MAX_RADIUS := 500.0
 const RIPPLE_WIDTH := 60.0  # thickness of the ripple ring

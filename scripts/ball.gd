@@ -48,10 +48,10 @@ func _setup_glow() -> void:
 	_glow_material.shader = _glow_shader
 	var c := GameConfig.BALL_COLOR
 	_glow_material.set_shader_parameter("glow_color", Color(c.r, c.g, c.b, 1.0))
-	_glow_material.set_shader_parameter("intensity", 0.7)
-	_glow_material.set_shader_parameter("falloff", 2.0)
+	_glow_material.set_shader_parameter("intensity", 1.5)
+	_glow_material.set_shader_parameter("falloff", 1.5)
 	_glow_sprite = ColorRect.new()
-	var glow_size := 80.0
+	var glow_size := 120.0
 	_glow_sprite.size = Vector2(glow_size, glow_size)
 	_glow_sprite.position = Vector2(-glow_size / 2.0, -glow_size / 2.0)
 	_glow_sprite.color = Color.WHITE
@@ -65,9 +65,9 @@ func _setup_glow() -> void:
 	_outer_glow_material.shader = _glow_shader
 	_outer_glow_material.set_shader_parameter("glow_color", Color(c.r, c.g, c.b, 1.0))
 	_outer_glow_material.set_shader_parameter("intensity", 0.0)
-	_outer_glow_material.set_shader_parameter("falloff", 3.0)
+	_outer_glow_material.set_shader_parameter("falloff", 2.0)
 	_outer_glow_sprite = ColorRect.new()
-	var outer_size := 120.0
+	var outer_size := 180.0
 	_outer_glow_sprite.size = Vector2(outer_size, outer_size)
 	_outer_glow_sprite.position = Vector2(-outer_size / 2.0, -outer_size / 2.0)
 	_outer_glow_sprite.color = Color.WHITE

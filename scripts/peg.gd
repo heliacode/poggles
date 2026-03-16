@@ -48,10 +48,10 @@ func _setup_glow() -> void:
 	_glow_material = ShaderMaterial.new()
 	_glow_material.shader = shader
 	_glow_material.set_shader_parameter("glow_color", Color(_color.r, _color.g, _color.b, 1.0))
-	_glow_material.set_shader_parameter("intensity", 0.5)
-	_glow_material.set_shader_parameter("falloff", 2.5)
+	_glow_material.set_shader_parameter("intensity", 1.2)
+	_glow_material.set_shader_parameter("falloff", 1.8)
 	_glow_sprite = ColorRect.new()
-	var glow_size := 100.0
+	var glow_size := 160.0
 	_glow_sprite.size = Vector2(glow_size, glow_size)
 	_glow_sprite.position = Vector2(-glow_size / 2.0, -glow_size / 2.0)
 	_glow_sprite.color = Color.WHITE
@@ -144,8 +144,10 @@ func _draw() -> void:
 	if SaveData.get_colorblind_mode():
 		_draw_colorblind_shape(base, ring_alpha, pulse)
 	else:
-		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * _hit_scale, 0, TAU, 48, Color(base.r, base.g, base.b, ring_alpha), 2.0, true)
-		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * 0.6 * _hit_scale, 0, TAU, 32, Color(base.r, base.g, base.b, ring_alpha * 0.4), 1.0, true)
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * _hit_scale, 0, TAU, 48, Color(base.r, base.g, base.b, ring_alpha), 2.5, true)
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * 0.6 * _hit_scale, 0, TAU, 32, Color(base.r, base.g, base.b, ring_alpha * 0.5), 1.5, true)
+		# Outer glow ring (always visible, faint)
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * _hit_scale + 3.0, 0, TAU, 48, Color(base.r, base.g, base.b, 0.15 * pulse), 4.0, true)
 
 	var dot_size := 2.5 + pulse * 0.5
 	draw_circle(Vector2.ZERO, dot_size * _hit_scale, Color(base.r, base.g, base.b, ring_alpha))
