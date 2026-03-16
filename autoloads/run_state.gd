@@ -207,6 +207,9 @@ func _generate_route_map() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = run_seed + current_act * 100 + current_board_index
 
+	# Row 0: START node (player begins here, auto-visited)
+	route_map.append([{"type": NodeType.REST, "label": "START", "connections": []}])
+
 	# Generate a big branching map: 10-12 rows before boss
 	var total_rows := 10 + (current_act - 1) * 2  # Act 1: 10, Act 2: 12, Act 3: 14
 
@@ -215,7 +218,7 @@ func _generate_route_map() -> void:
 		var count: int
 
 		if row == 0:
-			# Start: 2-3 board options
+			# First real choice row: 2-3 board options
 			count = rng.randi_range(2, 3)
 		elif row == total_rows / 2:
 			# Midpoint: elite encounter (1 node, forced)
@@ -249,8 +252,18 @@ func _generate_route_map() -> void:
 	# Boss row
 	route_map.append([{"type": NodeType.BOSS, "label": "BOSS", "connections": []}])
 
+	# START node (row 0) connects to ALL nodes in row 1
+	var start_conns: Array = []
+	for ci in range(route_map[1].size()):
+		start_conns.append(ci)
+	route_map[0][0]["connections"] = start_conns
+
+	# Auto-visit START node
+	route_path = [0]
+	route_position = 1  # Player picks from row 1
+
 	# Generate branching connections (each node connects to 1-2 nodes in next row)
-	for row_idx in range(route_map.size() - 1):
+	for row_idx in range(1, route_map.size() - 1):
 		var current_row: Array = route_map[row_idx]
 		var next_row: Array = route_map[row_idx + 1]
 		if next_row.is_empty():

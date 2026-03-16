@@ -231,14 +231,8 @@ func _draw() -> void:
 	# === NODES ===
 	_draw_nodes(map, vp, pulse, font)
 
-	# === "START" label at bottom ===
-	if map.size() > 0:
-		var start_vis_row := map.size() - 1
-		var start_y := MAP_TOP_MARGIN + float(start_vis_row) * ROW_HEIGHT + 55.0 - _scroll_y
-		if start_y > HEADER_HEIGHT and start_y < vp.y + 20:
-			var start_text := "START"
-			var start_size := font.get_string_size(start_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 12)
-			draw_string(font, Vector2(center_x - start_size.x / 2.0, start_y), start_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.3, 0.7, 0.5, 0.4))
+	# === PLAYER MARKER on last visited node ===
+	_draw_player_marker(pulse)
 
 	# === BOSS label at top ===
 	if map.size() > 0:
@@ -448,6 +442,33 @@ func _draw_nodes(map: Array, vp: Vector2, pulse: float, font: Font) -> void:
 			])
 			draw_polyline(m_pts, mc, 2.0)
 			draw_colored_polygon(PackedVector2Array([m_pts[0], m_pts[1], m_pts[2], m_pts[3]]), Color(mc.r, mc.g, mc.b, 0.15))
+
+func _draw_player_marker(pulse: float) -> void:
+	## Draw a bright pulsing player icon on the last visited node
+	if RunState.route_path.is_empty():
+		return
+	var last_row := RunState.route_path.size() - 1
+	var last_col := RunState.route_path[last_row]
+	# Find the rect for this node
+	for info in _node_rects:
+		if info["row"] == last_row and info["col"] == last_col:
+			var rect: Rect2 = info["rect"]
+			var center := Vector2(rect.position.x + rect.size.x / 2.0, rect.position.y + rect.size.y / 2.0) - Vector2(0, _scroll_y)
+			# Skip if off screen
+			if center.y < HEADER_HEIGHT - 30 or center.y > GameConfig.VIEWPORT_SIZE.y + 30:
+				return
+			# Pulsing glow circle
+			var glow_r := 28.0 + sin(_pulse * 3.0) * 4.0
+			draw_circle(center, glow_r, Color(0.3, 1.0, 0.5, 0.08 * pulse))
+			draw_circle(center, glow_r * 0.7, Color(0.3, 1.0, 0.5, 0.06 * pulse))
+			# Bright ring
+			draw_arc(center, 22.0, 0, TAU, 32, Color(0.3, 1.0, 0.5, 0.5 * pulse), 2.5, true)
+			# "YOU" text below
+			var font := ThemeDB.fallback_font
+			var you_text := "YOU"
+			var you_size := font.get_string_size(you_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 11)
+			draw_string(font, Vector2(center.x - you_size.x / 2.0, center.y + rect.size.y / 2.0 + 18), you_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.3, 1.0, 0.5, 0.7 * pulse))
+			return
 
 # ========== NODE SHAPES ==========
 
