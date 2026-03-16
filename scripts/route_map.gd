@@ -444,30 +444,25 @@ func _draw_nodes(map: Array, vp: Vector2, pulse: float, font: Font) -> void:
 			draw_colored_polygon(PackedVector2Array([m_pts[0], m_pts[1], m_pts[2], m_pts[3]]), Color(mc.r, mc.g, mc.b, 0.15))
 
 func _draw_player_marker(pulse: float) -> void:
-	## Draw a bright pulsing player icon on the last visited node
+	## Draw a bright diffuse glow on the last visited node
 	if RunState.route_path.is_empty():
 		return
 	var last_row := RunState.route_path.size() - 1
 	var last_col := RunState.route_path[last_row]
-	# Find the rect for this node
 	for info in _node_rects:
 		if info["row"] == last_row and info["col"] == last_col:
 			var rect: Rect2 = info["rect"]
 			var center := Vector2(rect.position.x + rect.size.x / 2.0, rect.position.y + rect.size.y / 2.0) - Vector2(0, _scroll_y)
-			# Skip if off screen
-			if center.y < HEADER_HEIGHT - 30 or center.y > GameConfig.VIEWPORT_SIZE.y + 30:
+			if center.y < HEADER_HEIGHT - 60 or center.y > GameConfig.VIEWPORT_SIZE.y + 60:
 				return
-			# Pulsing glow circle
-			var glow_r := 28.0 + sin(_pulse * 3.0) * 4.0
-			draw_circle(center, glow_r, Color(0.3, 1.0, 0.5, 0.08 * pulse))
-			draw_circle(center, glow_r * 0.7, Color(0.3, 1.0, 0.5, 0.06 * pulse))
-			# Bright ring
-			draw_arc(center, 22.0, 0, TAU, 32, Color(0.3, 1.0, 0.5, 0.5 * pulse), 2.5, true)
-			# "YOU" text below
-			var font := ThemeDB.fallback_font
-			var you_text := "YOU"
-			var you_size := font.get_string_size(you_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 11)
-			draw_string(font, Vector2(center.x - you_size.x / 2.0, center.y + rect.size.y / 2.0 + 18), you_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.3, 1.0, 0.5, 0.7 * pulse))
+			var c := _node_color(info["type"])
+			c = c.lerp(VISITED_PATH_COLOR, 0.4)
+			# Large diffuse glow layers (breathing)
+			var breathe := sin(_pulse * 2.0) * 0.3 + 0.7
+			for gi in range(6):
+				var r := 20.0 + float(gi) * 15.0 + sin(_pulse * 2.0) * 3.0
+				var a := (0.12 - float(gi) * 0.018) * pulse * breathe
+				draw_circle(center, r, Color(c.r, c.g, c.b, maxf(0.0, a)))
 			return
 
 # ========== NODE SHAPES ==========
