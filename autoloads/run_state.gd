@@ -31,6 +31,7 @@ var orange_cleared_this_run := 0
 # Route map
 var route_map: Array = []  # Array of arrays of MapNode dicts
 var route_position := 0
+var route_path: Array[int] = []  # Column index chosen at each visited row
 
 # Event / board modifiers
 var next_board_mods: Dictionary = {}  # Cleared after each board
@@ -59,6 +60,7 @@ func start_new_run() -> void:
 	pegs_hit_this_run = 0
 	orange_cleared_this_run = 0
 	route_position = 0
+	route_path = []
 	run_seed = randi()
 	next_board_mods = {}
 	permanent_coin_bonus = 0
@@ -119,6 +121,7 @@ func complete_board(orange_total: int, orange_cleared: int, board_score: int) ->
 			return
 
 	route_position = 0
+	route_path = []
 	_generate_route_map()
 	board_completed.emit(total_boards_cleared)
 
@@ -337,5 +340,6 @@ func advance_route(chosen_index: int) -> Dictionary:
 	if chosen_index < 0 or chosen_index >= row.size():
 		return {}
 	var chosen: Dictionary = row[chosen_index]
+	route_path.append(chosen_index)
 	route_position += 1
 	return chosen
