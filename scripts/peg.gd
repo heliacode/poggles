@@ -18,6 +18,11 @@ var _move_origin := Vector2.ZERO
 var _move_time := 0.0
 var _moving := false
 
+# Over-response hit state
+var _hit_scale := 1.0
+var _hot_flash_frames := 0  # Countdown frames for white-hot circle
+var _removal_flash_frames := 0  # Bright flash on removal
+
 var _glow_sprite: ColorRect
 var _glow_material: ShaderMaterial
 
@@ -70,14 +75,21 @@ func set_anticipation(val: float) -> void:
 
 func flash_celebrate() -> void:
 	_hit_flash = 1.0
+	_hot_flash_frames = 5
 
 func _process(delta: float) -> void:
-	_pulse += delta * 2.5
+	# Pulsing: orange pegs pulse more visibly than others
+	var pulse_speed := 3.5 if peg_type == "orange" else 2.5
+	_pulse += delta * pulse_speed
 	_special_pulse += delta
 	if _hit_flash > 0:
 		_hit_flash = maxf(0, _hit_flash - delta * 3.0)
 	if _anticipation > 0:
 		_anticipation = maxf(0, _anticipation - delta * 5.0)
+	if _hot_flash_frames > 0:
+		_hot_flash_frames -= 1
+	if _removal_flash_frames > 0:
+		_removal_flash_frames -= 1
 	_update_glow_shader()
 	queue_redraw()
 
@@ -85,17 +97,44 @@ func _update_glow_shader() -> void:
 	if not _glow_material:
 		return
 	var pulse_val := sin(_pulse) * 0.5 + 0.5
-	_glow_material.set_shader_parameter("glow_color", Color(_color.r, _color.g, _color.b, 1.0))
+	var glow_c := _color
+	# When hit, boost the glow color toward white for additive-feel brightness
+	if _hit_flash > 0:
+		glow_c = glow_c.lerp(Color.WHITE, _hit_flash * 0.5)
+	_glow_material.set_shader_parameter("glow_color", Color(glow_c.r, glow_c.g, glow_c.b, 1.0))
 	_glow_material.set_shader_parameter("pulse", pulse_val)
 	_glow_material.set_shader_parameter("hit_flash", _hit_flash)
 	_glow_material.set_shader_parameter("anticipation", _anticipation)
-	# Boost intensity when hit
-	var base_intensity := 0.7 if _hit else 0.5
+	# Boost intensity when hit — more aggressive
+	var base_intensity := 1.2 if _hit else 0.5
+	if _hit_flash > 0:
+		base_intensity += _hit_flash * 1.0
 	_glow_material.set_shader_parameter("intensity", base_intensity)
 
 func _draw() -> void:
-	var pulse := sin(_pulse) * 0.3 + 0.7
+	# Pulse amplitude: orange pegs pulse harder
+	var pulse_amp := 0.45 if peg_type == "orange" else 0.3
+	var pulse := sin(_pulse) * pulse_amp + (1.0 - pulse_amp)
 	var base := _color
+
+	# Removal bright flash (white circle that fades over 2-3 frames)
+	if _removal_flash_frames > 0:
+		var flash_t := float(_removal_flash_frames) / 4.0
+		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS * 3.0 * (1.0 + (1.0 - flash_t) * 0.5), Color(1, 1, 1, flash_t * 0.6))
+		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS * 1.5, Color(1, 1, 1, flash_t * 0.9))
+
+	# Hot flash: draw a bright white-hot filled circle for the first few frames after hit
+	if _hot_flash_frames > 0:
+		var flash_t := float(_hot_flash_frames) / 5.0
+		# White-hot core
+		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS * 1.1 * _hit_scale, Color(1, 1, 1, flash_t * 0.95))
+		# Bright color halo
+		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS * 1.6 * _hit_scale, Color(base.r, base.g, base.b, flash_t * 0.4))
+
+	# Hit flash white fill (fills peg shape)
+	if _hit_flash > 0.3:
+		var fill_alpha := (_hit_flash - 0.3) / 0.7  # 1.0 at flash=1.0, 0.0 at flash=0.3
+		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS * _hit_scale, Color(1, 1, 1, fill_alpha * 0.8))
 
 	# Main wireframe shape — colorblind mode uses distinct shapes per type
 	var ring_alpha := 0.8 + pulse * 0.2
@@ -105,12 +144,21 @@ func _draw() -> void:
 	if SaveData.get_colorblind_mode():
 		_draw_colorblind_shape(base, ring_alpha, pulse)
 	else:
-		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS, 0, TAU, 48, Color(base.r, base.g, base.b, ring_alpha), 2.0, true)
-		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * 0.6, 0, TAU, 32, Color(base.r, base.g, base.b, ring_alpha * 0.4), 1.0, true)
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * _hit_scale, 0, TAU, 48, Color(base.r, base.g, base.b, ring_alpha), 2.0, true)
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * 0.6 * _hit_scale, 0, TAU, 32, Color(base.r, base.g, base.b, ring_alpha * 0.4), 1.0, true)
 
 	var dot_size := 2.5 + pulse * 0.5
-	draw_circle(Vector2.ZERO, dot_size, Color(base.r, base.g, base.b, ring_alpha))
-	draw_circle(Vector2.ZERO, 1.5, Color(1, 1, 1, ring_alpha * 0.7))
+	draw_circle(Vector2.ZERO, dot_size * _hit_scale, Color(base.r, base.g, base.b, ring_alpha))
+	draw_circle(Vector2.ZERO, 1.5 * _hit_scale, Color(1, 1, 1, ring_alpha * 0.7))
+
+	# Anticipation glow — brighter ring + slight scale
+	if _anticipation > 0:
+		var ant_alpha := _anticipation * 0.8
+		var ant_scale := 1.0 + _anticipation * 0.15
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * ant_scale + 4.0, 0, TAU, 48, Color(base.r, base.g, base.b, ant_alpha * 0.6), 2.5, true)
+		draw_arc(Vector2.ZERO, GameConfig.PEG_RADIUS * ant_scale + 8.0, 0, TAU, 48, Color(base.r, base.g, base.b, ant_alpha * 0.25), 1.5, true)
+		# Bright center bloom
+		draw_circle(Vector2.ZERO, GameConfig.PEG_RADIUS * 0.8, Color(base.r, base.g, base.b, ant_alpha * 0.15))
 
 	# Special type overlays
 	if not _hit:
@@ -123,7 +171,7 @@ func _draw() -> void:
 		draw_string(font, Vector2(-4, -GameConfig.PEG_RADIUS - 8), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.1, 1.0, 0.3, 0.7))
 
 func _draw_colorblind_shape(base: Color, ring_alpha: float, pulse: float) -> void:
-	var r := GameConfig.PEG_RADIUS
+	var r := GameConfig.PEG_RADIUS * _hit_scale
 	var c := Color(base.r, base.g, base.b, ring_alpha)
 	var c_inner := Color(base.r, base.g, base.b, ring_alpha * 0.4)
 	match peg_type:
@@ -302,6 +350,7 @@ func hit() -> void:
 	if special_type == "armored" and _armor_hits > 0:
 		_armor_hits -= 1
 		_hit_flash = 0.6
+		_hot_flash_frames = 3
 		_spawn_armor_shards()
 		AudioManager.play_sfx("armor_crack")
 		return
@@ -311,7 +360,13 @@ func hit() -> void:
 		_moving = false
 		constant_linear_velocity = Vector2.ZERO
 	_hit_flash = 1.0
+	_hot_flash_frames = 5
 	_color = GameConfig.PEG_HIT_COLORS.get(peg_type, Color.WHITE)
+
+	# Scale pop: expand to 1.4x then snap back
+	_hit_scale = 1.4
+	var pop_tween := create_tween()
+	pop_tween.tween_property(self, "_hit_scale", 1.0, 0.15).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 
 	match special_type:
 		"bomb": _spawn_bomb_particles()
@@ -324,11 +379,13 @@ func hit() -> void:
 	peg_hit.emit(self)
 
 func _spawn_hit_particles() -> void:
-	for i in range(8):
+	var count := randi_range(12, 16)
+	for i in range(count):
 		var spark := _NeonSpark.new()
 		spark._color = _color
-		spark._angle = TAU * float(i) / 8.0 + randf() * 0.3
-		spark._speed = randf_range(80, 160)
+		spark._angle = TAU * float(i) / float(count) + randf() * 0.3
+		spark._speed = randf_range(120, 240)
+		spark._bright = true
 		add_child(spark)
 
 func _spawn_bomb_particles() -> void:
@@ -339,6 +396,7 @@ func _spawn_bomb_particles() -> void:
 		spark._angle = TAU * float(i) / 24.0 + randf() * 0.2
 		spark._speed = randf_range(150, 300)
 		spark._lifetime = 0.6
+		spark._bright = true
 		add_child(spark)
 	# Expanding ring
 	var ring := _ExpandRing.new()
@@ -349,12 +407,13 @@ func _spawn_bomb_particles() -> void:
 
 func _spawn_chain_particles() -> void:
 	var cc: Color = GameConfig.SPECIAL_PEG_COLORS["chain"]
-	for i in range(8):
+	for i in range(12):
 		var spark := _NeonSpark.new()
 		spark._color = cc
-		spark._angle = TAU * float(i) / 8.0 + randf() * 0.3
-		spark._speed = randf_range(60, 120)
+		spark._angle = TAU * float(i) / 12.0 + randf() * 0.3
+		spark._speed = randf_range(80, 160)
 		spark._lifetime = 0.3
+		spark._bright = true
 		add_child(spark)
 
 func _spawn_gravity_particles() -> void:
@@ -366,6 +425,7 @@ func _spawn_gravity_particles() -> void:
 		spark._angle = TAU * float(i) / 12.0
 		spark._speed = randf_range(-80, -40)  # Negative = inward
 		spark._lifetime = 0.4
+		spark._bright = true
 		spark.position = Vector2.from_angle(TAU * float(i) / 12.0) * randf_range(30, 50)
 		add_child(spark)
 	# Expanding radius indicator
@@ -384,18 +444,20 @@ func _spawn_multiplier_particles() -> void:
 		spark._angle = TAU * float(i) / 8.0 + 0.5  # Spiral offset
 		spark._speed = randf_range(80, 140)
 		spark._lifetime = 0.4
+		spark._bright = true
 		add_child(spark)
 	_spawn_hit_particles()
 
 func _spawn_moving_particles() -> void:
 	var mc: Color = GameConfig.SPECIAL_PEG_COLORS["moving"]
 	# Satisfying "pinned" effect - sparks fly in the direction of movement
-	for i in range(10):
+	for i in range(12):
 		var spark := _NeonSpark.new()
 		spark._color = mc
 		spark._angle = randf_range(-0.5, 0.5)  # Mostly forward
-		spark._speed = randf_range(100, 200)
+		spark._speed = randf_range(120, 240)
 		spark._lifetime = 0.4
+		spark._bright = true
 		add_child(spark)
 	_spawn_hit_particles()
 
@@ -411,12 +473,17 @@ func _spawn_armor_shards() -> void:
 		shard.global_position = global_position + Vector2.from_angle(shard._angle) * (GameConfig.PEG_RADIUS + 3)
 
 func remove_peg() -> void:
-	for i in range(16):
+	# Trigger screen-bright flash at peg position
+	_removal_flash_frames = 4
+
+	# More sparks on removal
+	for i in range(20):
 		var spark := _NeonSpark.new()
 		spark._color = _color
-		spark._angle = TAU * float(i) / 16.0
-		spark._speed = randf_range(100, 200)
+		spark._angle = TAU * float(i) / 20.0 + randf() * 0.15
+		spark._speed = randf_range(120, 260)
 		spark._lifetime = 0.8
+		spark._bright = true
 		get_parent().add_child(spark)
 		spark.global_position = global_position
 
@@ -428,6 +495,24 @@ func remove_peg() -> void:
 		ring._duration = 0.3
 		ring.global_position = global_position
 		get_parent().add_child(ring)
+
+	# Shatter fragments: small wireframe triangles that fly outward and fade
+	for i in range(randi_range(6, 10)):
+		var frag := _ShatterFragment.new()
+		frag._color = _color
+		frag._angle = TAU * float(i) / 8.0 + randf() * 0.5
+		frag._speed = randf_range(60, 180)
+		frag._size = randf_range(3.0, 6.0)
+		frag.global_position = global_position + Vector2.from_angle(frag._angle) * randf_range(2, 8)
+		get_parent().add_child(frag)
+
+	# Bright removal flash ring
+	var flash_ring := _ExpandRing.new()
+	flash_ring._color = Color.WHITE
+	flash_ring._max_radius = 60.0
+	flash_ring._duration = 0.2
+	flash_ring.global_position = global_position
+	get_parent().add_child(flash_ring)
 
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(self, "modulate:a", 0.0, 0.3)
@@ -443,6 +528,7 @@ class _NeonSpark extends Node2D:
 	var _lifetime := 0.5
 	var _age := 0.0
 	var _vel := Vector2.ZERO
+	var _bright := false  # Brighter sparks for over-response
 
 	func _ready() -> void:
 		_vel = Vector2.from_angle(_angle) * _speed
@@ -460,9 +546,15 @@ class _NeonSpark extends Node2D:
 		var t := 1.0 - _age / _lifetime
 		var len := _vel.length() * 0.04 * t
 		var dir := _vel.normalized()
-		draw_circle(Vector2.ZERO, 3.0 * t, Color(_color.r, _color.g, _color.b, t * 0.3))
-		draw_line(-dir * len, dir * len, Color(_color.r, _color.g, _color.b, t), 1.5)
-		draw_circle(Vector2.ZERO, 1.0 * t, Color(1, 1, 1, t * 0.8))
+		if _bright:
+			# Larger, brighter sparks with more visible glow
+			draw_circle(Vector2.ZERO, 4.5 * t, Color(_color.r, _color.g, _color.b, t * 0.45))
+			draw_line(-dir * len * 1.3, dir * len * 1.3, Color(_color.r, _color.g, _color.b, t), 2.0)
+			draw_circle(Vector2.ZERO, 1.8 * t, Color(1, 1, 1, t * 0.95))
+		else:
+			draw_circle(Vector2.ZERO, 3.0 * t, Color(_color.r, _color.g, _color.b, t * 0.3))
+			draw_line(-dir * len, dir * len, Color(_color.r, _color.g, _color.b, t), 1.5)
+			draw_circle(Vector2.ZERO, 1.0 * t, Color(1, 1, 1, t * 0.8))
 
 
 class _ExpandRing extends Node2D:
@@ -561,3 +653,47 @@ class _ChainBolt extends Node2D:
 		draw_polyline(_path, Color(_color.r, _color.g, _color.b, t * 0.9), 2.0)
 		# Glow
 		draw_polyline(_path, Color(_color.r, _color.g, _color.b, t * 0.2), 5.0)
+
+
+class _ShatterFragment extends Node2D:
+	var _color := Color.WHITE
+	var _angle := 0.0
+	var _speed := 100.0
+	var _size := 4.0
+	var _lifetime := 0.6
+	var _age := 0.0
+	var _vel := Vector2.ZERO
+	var _rotation_speed := 0.0
+	var _shape_seed := 0.0
+
+	func _ready() -> void:
+		_vel = Vector2.from_angle(_angle) * _speed
+		_rotation_speed = randf_range(8, 16) * (1.0 if randf() > 0.5 else -1.0)
+		_shape_seed = randf()
+
+	func _process(delta: float) -> void:
+		_age += delta
+		if _age >= _lifetime:
+			queue_free()
+			return
+		position += _vel * delta
+		_vel *= 0.94
+		# Slight gravity pull
+		_vel.y += 80.0 * delta
+		rotation += _rotation_speed * delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var t := 1.0 - _age / _lifetime
+		var s := _size * t
+		# Irregular triangle — each fragment is slightly different
+		var skew := _shape_seed * 0.6 + 0.7  # 0.7 to 1.3
+		var pts := PackedVector2Array([
+			Vector2(0, -s),
+			Vector2(s * skew, s * 0.6),
+			Vector2(-s * (1.4 - skew), s * 0.4)
+		])
+		# Wireframe triangle (no fill — matches aesthetic)
+		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(_color.r, _color.g, _color.b, t * 0.9), 1.5)
+		# Bright center dot
+		draw_circle(Vector2.ZERO, 1.0 * t, Color(1, 1, 1, t * 0.6))

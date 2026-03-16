@@ -13,11 +13,18 @@ var orange_pegs_total := 0
 var orange_pegs_remaining := 0
 var current_ball: RigidBody2D = null
 var ball_scene: PackedScene
-var _shake_amount := 0.0
-var _shake_decay := 5.0
+var _trauma := 0.0  # 0-1, actual shake = trauma^2 * max_offset
+var _trauma_decay := 2.5  # How fast trauma decays per second
+var _shake_max_offset := 12.0  # Max pixel offset at full trauma
+var _shake_noise := FastNoiseLite.new()
+var _shake_noise_y := 0.0  # Noise sample position, advances over time
 var _camera_offset := Vector2.ZERO
 var _flash_alpha := 0.0
 var _flash_color := Color(1.0, 0.6, 0.1)
+var _flash_position := Vector2(640, 360)  # Center of flash for radial effect
+var _flash_radius := 800.0  # How wide the radial flash extends
+var _hitstop_timer := 0.0  # Remaining hitstop duration (real-time seconds)
+var _hitstop_restore_scale := 1.0  # Time scale to restore after hitstop
 var _combo_count := 0
 var _level_data: LevelData
 var _balls_used := 0
@@ -55,6 +62,10 @@ var _board_mods: Dictionary = {}
 
 func _ready() -> void:
 	ball_scene = load(GameConfig.BALL_SCENE_PATH)
+	# Setup noise for smooth camera shake
+	_shake_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_shake_noise.frequency = 1.5
+	_shake_noise.seed = randi()
 	_is_roguelite = RunState.is_run_active
 	if _is_roguelite:
 		_board_mods = RunState.next_board_mods.duplicate()
@@ -216,18 +227,29 @@ func _process(delta: float) -> void:
 					_start_playing()
 		queue_redraw()
 
+	# Hitstop (freeze frame) processing — uses real delta, ignores time_scale
+	if _hitstop_timer > 0:
+		# Use unscaled delta since time_scale is near zero during hitstop
+		_hitstop_timer -= get_process_delta_time()
+		if _hitstop_timer <= 0:
+			_hitstop_timer = 0.0
+			Engine.time_scale = _hitstop_restore_scale
+
 	if _flash_alpha > 0:
-		_flash_alpha *= 0.85
+		_flash_alpha *= 0.82
 		if _flash_alpha < 0.005:
 			_flash_alpha = 0.0
 		queue_redraw()
 
-	if _shake_amount > 0:
-		_shake_amount = max(0, _shake_amount - _shake_decay * delta)
+	# Trauma-based screen shake: actual offset = trauma^2 * max_offset
+	if _trauma > 0:
+		_trauma = maxf(0.0, _trauma - _trauma_decay * delta)
+		_shake_noise_y += delta * 150.0  # Advance noise sampling
 		if SaveData.get_screen_shake():
+			var shake_intensity := _trauma * _trauma * _shake_max_offset
 			_camera_offset = Vector2(
-				randf_range(-_shake_amount, _shake_amount),
-				randf_range(-_shake_amount, _shake_amount)
+				_shake_noise.get_noise_2d(_shake_noise_y, 0.0) * shake_intensity,
+				_shake_noise.get_noise_2d(0.0, _shake_noise_y) * shake_intensity
 			)
 			pegs_container.position = _camera_offset
 	elif _camera_offset != Vector2.ZERO:
@@ -286,9 +308,9 @@ func _check_boss_phases() -> void:
 			_execute_boss_phase(phase)
 
 func _execute_boss_phase(phase: Dictionary) -> void:
-	_flash_alpha = 0.3
-	_flash_color = Color(1.0, 0.2, 0.2)
-	_shake_amount = 8.0
+	_trigger_flash(Color(1.0, 0.2, 0.2), 0.4, Vector2(640, 360))
+	_add_trauma(0.5)
+	_trigger_hitstop(0.06)
 	match phase["action"]:
 		"spawn_armored":
 			# Spawn new armored pegs
@@ -332,11 +354,24 @@ func _execute_boss_phase(phase: Dictionary) -> void:
 					peg.modulate.a = 0.15
 		"shrink_area":
 			# Visual warning - shake and flash
-			_shake_amount = 10.0
+			_add_trauma(0.6)
 
 func _draw() -> void:
 	if _flash_alpha > 0:
-		draw_rect(Rect2(0, 0, 1280, 720), Color(_flash_color.r, _flash_color.g, _flash_color.b, _flash_alpha))
+		# Radial flash: bright at _flash_position, fading outward
+		var fc := _flash_color
+		# Base ambient flash (lower intensity, covers whole screen)
+		draw_rect(Rect2(0, 0, 1280, 720), Color(fc.r, fc.g, fc.b, _flash_alpha * 0.35))
+		# Radial rings from flash center — brighter near the hit
+		var local_pos := _flash_position - global_position
+		var ring_count := 4
+		for i in range(ring_count):
+			var t := float(i) / float(ring_count)
+			var ring_r := _flash_radius * (0.1 + t * 0.9)
+			var ring_alpha := _flash_alpha * (1.0 - t * 0.7)
+			draw_arc(local_pos, ring_r, 0, TAU, 48, Color(fc.r, fc.g, fc.b, ring_alpha * 0.5), ring_r * 0.5, true)
+		# Bright core circle at flash position
+		draw_circle(local_pos, 30.0, Color(fc.r, fc.g, fc.b, _flash_alpha * 0.6))
 
 	# Board intro overlay (game elements hidden during intro for visibility)
 	if _board_intro_active:
@@ -514,6 +549,24 @@ func _count_orange_pegs() -> void:
 			orange_pegs_total += 1
 	orange_pegs_remaining = orange_pegs_total
 
+func _add_trauma(amount: float) -> void:
+	_trauma = clampf(_trauma + amount, 0.0, 1.0)
+
+func _trigger_hitstop(duration_sec: float) -> void:
+	# Brief freeze frame: set time_scale very low, restore after duration
+	# Don't stack hitstops — take the longer one
+	if _hitstop_timer > 0 and _hitstop_timer > duration_sec:
+		return
+	_hitstop_restore_scale = Engine.time_scale if _hitstop_timer <= 0 else _hitstop_restore_scale
+	Engine.time_scale = 0.05
+	_hitstop_timer = duration_sec
+
+func _trigger_flash(color: Color, alpha: float, pos: Vector2, radius: float = 800.0) -> void:
+	_flash_color = color
+	_flash_alpha = maxf(_flash_alpha, alpha)
+	_flash_position = pos
+	_flash_radius = radius
+
 func _on_ball_fired(pos: Vector2, direction: Vector2, power: float) -> void:
 	if state != State.PLAYING:
 		return
@@ -593,17 +646,31 @@ func _celebrate_clear() -> void:
 	for peg in pegs_container.get_children():
 		if peg.has_method("flash_celebrate"):
 			peg.flash_celebrate()
-	# Radial spark burst from center
+	# Neon palette for celebration sparks
+	var neon_colors: Array[Color] = [
+		Color(1.0, 0.85, 0.3),   # Gold
+		Color(0.2, 1.0, 0.6),    # Neon green
+		Color(0.3, 0.8, 1.0),    # Cyan
+		Color(1.0, 0.3, 0.6),    # Hot pink
+		Color(0.6, 0.3, 1.0),    # Purple
+		Color(1.0, 0.5, 0.1),    # Orange
+	]
+	# Radial spark burst from center — 48 sparks cycling neon colors
 	var center := Vector2(640, 360)
-	for i in range(32):
+	for i in range(48):
 		var spark := _CelebrationSpark.new()
-		spark._angle = TAU * float(i) / 32.0 + randf() * 0.1
-		spark._speed = randf_range(200, 500)
-		spark._color = Color(1.0, 0.85, 0.3)  # Gold
+		spark._angle = TAU * float(i) / 48.0 + randf() * 0.12
+		spark._speed = randf_range(250, 600)
+		spark._color = neon_colors[i % neon_colors.size()]
+		spark._lifetime = randf_range(0.8, 1.4)
 		spark.global_position = center
 		add_child(spark)
-	_flash_alpha = 0.25
-	_shake_amount = 6.0
+	# White-hot screen flash — brighter and wider than normal
+	_trigger_flash(Color(1.0, 0.95, 0.9), 0.55, center, 1000.0)
+	# Big trauma for celebration shake
+	_add_trauma(0.6)
+	# Hitstop to let the moment land
+	_trigger_hitstop(0.07)
 
 func _on_board_cleared() -> void:
 	state = State.LEVEL_COMPLETE
@@ -729,13 +796,22 @@ func _on_peg_hit(peg: Node) -> void:
 	# During fever: multiplier from relics
 	if FeverManager.is_fever_active:
 		points *= RelicManager.get_fever_multiplier()
-	_add_score(points)
+	_add_score(points, peg.global_position)
 
 	# Boss HP damage — orange pegs damage the boss
 	if _boss_data and peg_type == "orange":
 		_boss_hp = maxi(0, _boss_hp - points)
 		_check_boss_phases()
-	_shake_amount = clampf(float(points) / 50.0 * (1.0 + _combo_count * 0.3), 1.0, 8.0)
+	# Trauma-based shake: scales with points and combo
+	var hit_trauma := clampf(float(points) / 200.0 * (1.0 + _combo_count * 0.2), 0.08, 0.4)
+	if _combo_count >= 5:
+		hit_trauma = maxf(hit_trauma, 0.3)  # Combo hit — strong feedback
+	_add_trauma(hit_trauma)
+
+	# Hitstop on big combos — brief freeze frame for impact
+	if _combo_count >= 5:
+		_trigger_hitstop(0.05)
+
 	var color: Color = GameConfig.SCORE_POPUP_COLORS.get(peg_type, Color.WHITE)
 	var popup_text := "+%d" % points
 	if multiplier > 1.0:
@@ -744,14 +820,13 @@ func _on_peg_hit(peg: Node) -> void:
 		popup_text += " x%d COMBO!" % _combo_count
 	_spawn_score_popup(popup_text, color, peg.global_position)
 
-	# Screen flash on orange peg hit
+	# Position-based screen flash on orange peg hit
 	if peg_type == "orange":
-		_flash_color = Color(1.0, 0.6, 0.1)
-		_flash_alpha = 0.15
-	# Cyan tint on high combo
+		_trigger_flash(Color(1.0, 0.6, 0.1), 0.18, peg.global_position, 500.0)
+	# Cyan flash on high combo — progressively more intense
 	if _combo_count >= 5:
-		_flash_color = Color(0.2, 0.8, 1.0)
-		_flash_alpha = maxf(_flash_alpha, 0.1)
+		var combo_intensity := clampf(0.1 + (_combo_count - 5) * 0.04, 0.1, 0.4)
+		_trigger_flash(Color(0.2, 0.8, 1.0), combo_intensity, peg.global_position, 600.0)
 
 	# Character avatar mood reactions
 	if _combo_count >= 5:
@@ -779,6 +854,10 @@ func _on_peg_hit(peg: Node) -> void:
 		"bomb":
 			_effect_bomb(peg)
 			AudioManager.play_sfx("bomb_explode")
+			# Bomb = heavy visual feedback
+			_add_trauma(0.5)
+			_trigger_flash(Color(1.0, 0.4, 0.1), 0.35, peg.global_position, 700.0)
+			_trigger_hitstop(0.05)
 		"chain":
 			_effect_chain(peg)
 			AudioManager.play_sfx("chain_zap")
@@ -863,20 +942,24 @@ func _effect_gravity(peg: Node2D) -> void:
 	})
 
 func _on_fever_triggered() -> void:
-	_flash_alpha = 0.3
-	_flash_color = Color(1.0, 0.85, 0.0)  # Gold flash
-	_shake_amount = 5.0
+	_trigger_flash(Color(1.0, 0.85, 0.0), 0.4, Vector2(640, 360), 900.0)
+	_add_trauma(0.6)  # Fever = big shake
+	_trigger_hitstop(0.06)
 	AudioManager.play_sfx("fever_trigger")
 
-func _add_score(points: int) -> void:
+func _add_score(points: int, world_pos := Vector2.ZERO) -> void:
 	score += points
 	_board_score += points
 	if _is_roguelite:
 		RunState.add_score(points)
 	score_changed.emit(score)
 	_update_hud()
-	if has_node("Background") and $Background.has_method("pulse"):
-		$Background.pulse(clampf(float(points) / 100.0, 0.1, 0.5))
+	if has_node("Background"):
+		var intensity := clampf(float(points) / 100.0, 0.1, 0.5)
+		if world_pos != Vector2.ZERO and $Background.has_method("pulse_at"):
+			$Background.pulse_at(world_pos, intensity)
+		elif $Background.has_method("pulse"):
+			$Background.pulse(intensity)
 
 func _spawn_score_popup(text: String, col: Color, pos: Vector2) -> void:
 	var popup := Node2D.new()

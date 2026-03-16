@@ -16,17 +16,23 @@ void fragment() {
 	// Pulse breathing
 	float pulse_mod = 1.0 + pulse * 0.25;
 
-	// Hit flash: bright white burst
+	// Hit flash: bright white burst — more dramatic
 	vec3 color = glow_color.rgb;
 	float extra_intensity = 0.0;
 	if (hit_flash > 0.0) {
-		color = mix(color, vec3(1.0), hit_flash * 0.6);
-		extra_intensity = hit_flash * 1.5;
+		color = mix(color, vec3(1.0), hit_flash * 0.8);
+		extra_intensity = hit_flash * 2.5;
+		// Reduce falloff during flash so glow spreads wider
+		float flash_glow = pow(max(1.0 - dist, 0.0), falloff * (1.0 - hit_flash * 0.4));
+		glow = max(glow, flash_glow);
 	}
 
-	// Anticipation: expand brightness when ball approaches
+	// Anticipation: brighter, wider glow when ball approaches
 	if (anticipation > 0.0) {
-		extra_intensity += anticipation * 0.8;
+		extra_intensity += anticipation * 1.2;
+		// Widen the glow during anticipation
+		float ant_glow = pow(max(1.0 - dist, 0.0), falloff * (1.0 - anticipation * 0.3));
+		glow = max(glow, ant_glow);
 	}
 
 	float final_intensity = (intensity + extra_intensity) * pulse_mod;
